@@ -7,7 +7,9 @@
 
 // Minimal constructor with no AudioProcessorValueTreeState at all
 RandomWalkSequencer::RandomWalkSequencer()
-    : AudioProcessor(BusesProperties())
+    : AudioProcessor(BusesProperties()
+                     .withInput("Input", juce::AudioChannelSet::stereo())
+                     .withOutput("Output", juce::AudioChannelSet::stereo()))
 {
     // Set up parameter values manually
     rateValue = 3;       // Default to quarter notes (1/4)
@@ -31,6 +33,14 @@ RandomWalkSequencer::RandomWalkSequencer()
 
     // Generate initial sequence
     generateRandomWalk();
+
+    // Disable the audio buses for MIDI-only operation
+    // This is important for VST3 MIDI effect compatibility
+    for (int i = 0; i < getBusCount(true); ++i)
+        getBus(true, i)->enable(false);
+
+    for (int i = 0; i < getBusCount(false); ++i)
+        getBus(false, i)->enable(false);
 
     DEBUG_LOG("Processor created with random walk pattern");
 }
@@ -237,9 +247,21 @@ void RandomWalkSequencer::processBlock(juce::AudioBuffer<float>& buffer, juce::M
 
 bool RandomWalkSequencer::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
-    // For a MIDI effect, we only support disabled audio channels
-    return layouts.getMainInputChannelSet() == juce::AudioChannelSet::disabled() &&
-           layouts.getMainOutputChannelSet() == juce::AudioChannelSet::disabled();
+    // More permissive approach for Ableton:
+    // Accept configurations where audio is disabled OR where it has stereo buses
+    bool isInputDisabled = layouts.getMainInputChannelSet().isDisabled();
+    bool isOutputDisabled = layouts.getMainOutputChannelSet().isDisabled();
+
+    // Accept if both are disabled (MIDI only)
+    if (isInputDisabled && isOutputDisabled)
+        return true;
+
+    // Also accept stereo/stereo for Ableton compatibility
+    if (layouts.getMainInputChannelSet() == juce::AudioChannelSet::stereo() &&
+        layouts.getMainOutputChannelSet() == juce::AudioChannelSet::stereo())
+        return true;
+
+    return false;
 }
 
 // Add more pattern generation algorithms for different musical feels
@@ -526,21 +548,25 @@ void RandomWalkSequencer::updateTimingInfo()
 {
     // Get host information if available
     auto* playHead = getPlayHead();
-    juce::AudioPlayHead::CurrentPositionInfo posInfo;
 
-    if (playHead != nullptr && playHead->getCurrentPosition(posInfo))
+    if (playHead != nullptr)
     {
-        // Update BPM from host
-        bpm = posInfo.bpm;
+        // Use the newer API
+        juce::Optional<juce::AudioPlayHead::PositionInfo> posInfo = playHead->getPosition();
 
-        // Sync with host transport if it's playing
-        if (posInfo.isPlaying && !isPlaying)
-            setPlaying(true);
-        else if (!posInfo.isPlaying && isPlaying)
-            setPlaying(false);
+        if (posInfo.hasValue())
+        {
+            // Update BPM from host if available
+            if (posInfo->getBpm().hasValue())
+                bpm = *posInfo->getBpm();
 
-        // Optionally sync to host time signature
-        // Could adjust timing based on posInfo.timeSigNumerator and posInfo.timeSigDenominator
+            // Sync with host transport if it's playing
+            bool isHostPlaying = posInfo->getIsPlaying();
+            if (isHostPlaying && syncToHostTransport && !isPlaying)
+                setPlaying(true);
+            else if (!isHostPlaying && syncToHostTransport && isPlaying)
+                setPlaying(false);
+        }
     }
 
     // Calculate samples per beat
