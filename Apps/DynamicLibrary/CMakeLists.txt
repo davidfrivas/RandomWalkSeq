@@ -1,7 +1,11 @@
 project(AppWithDLL VERSION 0.1)
 
 #first, we define the dll:
-add_library(DLL MODULE Source/DLL.cpp)
+add_library(DLL MODULE Source/DLL.cpp
+        ../../Plugins/RandomWalkSequencer/Source/RandomWalkSequencer.cpp
+        ../../Plugins/RandomWalkSequencer/Source/RandomWalkSequencer.h
+        ../../Plugins/RandomWalkSequencer/Source/RandomWalkSequencerEditor.cpp
+        ../../Plugins/RandomWalkSequencer/Source/RandomWalkSequencerEditor.h)
 target_compile_definitions(DLL PRIVATE JUCE_MODAL_LOOPS_PERMITTED=1)
 _juce_initialise_target(DLL)
 
