@@ -72,6 +72,13 @@ public:
     int getCurrentStep() const { return currentStep; }
     int getSequenceValue(int index) const { return sequence[index]; }
 
+    // New methods for manual step control
+    bool isStepEnabled(int step) const;
+    void toggleStepEnabled(int step);
+    void setManualStepMode(bool isManual);
+    bool isManualStepMode() const { return manualStepMode; }
+    void resetEnabledSteps();
+
     bool canAddBus(bool /*isInput*/) const override
     {
         return false;  // Don't allow adding buses
@@ -99,6 +106,11 @@ private:
     int currentStep = 0;
     bool isPlaying = false;
     int sequence[numSteps] = {0}; // MIDI note offsets from base note
+
+    // New array to track enabled/disabled steps
+    bool enabledSteps[numSteps] = {true}; // All steps enabled by default
+    bool manualStepMode = false; // Track if we're in manual step mode
+
     double sampleRate = 44100.0;
     double bpm = 120.0;
     double samplesPerBeat = 0.0;

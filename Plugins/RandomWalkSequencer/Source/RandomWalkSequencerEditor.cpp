@@ -1,411 +1,728 @@
-#include "RandomWalkSequencerEditor.h"
+#include <memory>
 #include <iostream>
+#define DEBUG_LOG(x) std::cout << "[DEBUG] " << x << std::endl;
 
-#define DEBUG_LOG(x) std::cout << "[DEBUG] " << x << std::endl
+#include "RandomWalkSequencer.h"
+#include "RandomWalkSequencerEditor.h"
 
-// Modified constructor with direct parameter control
-RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
-    : AudioProcessorEditor(&p)
-    , randomWalkProcessor(p) // Renamed from 'processor' to avoid shadowing
-    , stepDisplay(p)
+// Minimal constructor with no AudioProcessorValueTreeState at all
+RandomWalkSequencer::RandomWalkSequencer()
+    : AudioProcessor(BusesProperties())
 {
-    DEBUG_LOG("Editor constructor start");
+    // Set up parameter values manually
+    rateValue = 3;       // Default to quarter notes (1/4)
+    densityValue = 8;    // Default to 8 steps
+    offsetValue = 0;     // Default to no offset
+    gateValue = 0.5f;    // Default gate time 50%
+    rootValue = 60;      // Default to C4
 
-    // Rate label
-    rateLabel.setText("Rate", juce::dontSendNotification);
-    rateLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(rateLabel);
+    // Initialize timing variables
+    sampleRate = 44100.0;
+    bpm = 120.0;
 
-    // Rate combo box setup
-    rateComboBox.addItemList(juce::StringArray("1/32", "1/16", "1/8", "1/4", "1/3", "1/2", "1", "2", "3", "4"), 1);
-    rateComboBox.setSelectedItemIndex(randomWalkProcessor.getRate()); // Using renamed processor
-    rateComboBox.setJustificationType(juce::Justification::centred);
-    rateComboBox.onChange = [this] { randomWalkProcessor.setRate(rateComboBox.getSelectedItemIndex()); }; // Using renamed processor
-    addAndMakeVisible(rateComboBox);
-
-    // Density slider
-    densityLabel.setText("Density", juce::dontSendNotification);
-    densityLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(densityLabel);
-
-    densitySlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    densitySlider.setRange(1, 16, 1);
-    densitySlider.setValue(randomWalkProcessor.getDensity()); // Using renamed processor
-    densitySlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
-    densitySlider.onValueChange = [this] { randomWalkProcessor.setDensity(static_cast<int>(densitySlider.getValue())); }; // Using renamed processor
-    addAndMakeVisible(densitySlider);
-
-    // Offset slider
-    offsetLabel.setText("Offset", juce::dontSendNotification);
-    offsetLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(offsetLabel);
-
-    offsetSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    offsetSlider.setRange(0, 15, 1);
-    offsetSlider.setValue(randomWalkProcessor.getOffset()); // Using renamed processor
-    offsetSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
-    offsetSlider.onValueChange = [this] { randomWalkProcessor.setOffset(static_cast<int>(offsetSlider.getValue())); }; // Using renamed processor
-    addAndMakeVisible(offsetSlider);
-
-    // Gate slider
-    gateLabel.setText("Gate", juce::dontSendNotification);
-    gateLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(gateLabel);
-
-    gateSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    gateSlider.setRange(0.1, 1.0, 0.01);
-    gateSlider.setValue(randomWalkProcessor.getGate()); // Using renamed processor
-    gateSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 50, 20);
-    gateSlider.onValueChange = [this] { randomWalkProcessor.setGate(static_cast<float>(gateSlider.getValue())); }; // Using renamed processor
-    addAndMakeVisible(gateSlider);
-
-    // Root slider
-    rootLabel.setText("Root", juce::dontSendNotification);
-    rootLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(rootLabel);
-
-    rootSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    rootSlider.setRange(60, 72, 1); // MIDI notes from C4 to C5
-    rootSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20); // Wider for note name display
-    // Update the note name display function that's called when the slider value changes
-    rootSlider.onValueChange = [this] {
-        int value = static_cast<int>(rootSlider.getValue());
-        randomWalkProcessor.setRoot(value);
-
-        // Update note name display
-        static const char* noteNames[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-        int noteIndex = value % 12;
-        int octave = value / 12 - 1;  // MIDI note 60 is C4
-        juce::String noteName = juce::String(noteNames[noteIndex]) + juce::String(octave);
-        rootSlider.setTextValueSuffix(" (" + noteName + ")");
-    };
-    addAndMakeVisible(rootSlider);
-
-    // Initialize note name display
-    rootSlider.onValueChange();
-
-    // Randomize button
-    randomizeButton.setButtonText("Randomize");
-    randomizeButton.onClick = [this] { randomWalkProcessor.randomizeSequence(); }; // Using renamed processor
-    addAndMakeVisible(randomizeButton);
-
-    // Play button
-    playButton.setButtonText("Play");
-    playButton.setClickingTogglesState(true);
-    playButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::green);
-    playButton.onClick = [this] {
-        bool isPlaying = playButton.getToggleState();
-        randomWalkProcessor.setPlaying(isPlaying);
-        playButton.setButtonText(isPlaying ? "Stop" : "Play");
-    };
-    addAndMakeVisible(playButton);
-
-    // Pattern type selector
-    patternTypeLabel.setText("Pattern", juce::dontSendNotification);
-    patternTypeLabel.setJustificationType(juce::Justification::centred);
-    addAndMakeVisible(patternTypeLabel);
-
-    patternTypeComboBox.addItemList(juce::StringArray(
-        "Random Walk", "Ascending", "Descending", "Arpeggio"), 1);
-    patternTypeComboBox.setSelectedItemIndex(0);
-    patternTypeComboBox.onChange = [this] {
-        // Generate a new sequence with the selected pattern type
-        randomWalkProcessor.randomizeSequence(patternTypeComboBox.getSelectedItemIndex());
-    };
-    addAndMakeVisible(patternTypeComboBox);
-
-    // Transport sync toggle
-    syncButton.setButtonText("Sync to Host Transport");
-    syncButton.setToggleState(true, juce::dontSendNotification);
-    syncButton.onClick = [this] {
-        randomWalkProcessor.setSyncToHostTransport(syncButton.getToggleState());
-    };
-    addAndMakeVisible(syncButton);
-
-    // Step display
-    addAndMakeVisible(stepDisplay);
-    stepDisplay.setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
-
-    // Set up timer to refresh UI
-    startTimerHz(30);
-
-    // Set initial size
-    setSize(600, 400);
-
-    DEBUG_LOG("Editor constructor end");
-}
-
-RandomWalkSequencerEditor::~RandomWalkSequencerEditor()
-{
-    stopTimer();
-}
-
-void RandomWalkSequencerEditor::paint(juce::Graphics& g)
-{
-    g.fillAll(juce::Colours::darkgrey);
-
-    g.setColour(juce::Colours::white);
-    g.setFont(15.0f);
-    g.drawText("Random Walk Sequencer", getLocalBounds(), juce::Justification::centredTop, true);
-}
-
-void RandomWalkSequencerEditor::resized()
-{
-    auto area = getLocalBounds().reduced(10);
-
-    // Calculate the total height needed
-    int totalHeight = 40 + 150 + 30 + 10 + (40 + 10) * 5; // Header + Display + Sync + Spacing + 5 controls with spacing
-
-    // Set a minimum size for the editor to ensure all controls are visible
-    setSize(juce::jmax(600, getWidth()), juce::jmax(totalHeight, getHeight()));
-
-    // Now continue with layout
-    area = getLocalBounds().reduced(10);
-
-    // Header section
-    auto headerArea = area.removeFromTop(40);
-
-    // Add pattern selector to the left
-    auto patternArea = headerArea.removeFromLeft(200);
-    patternTypeLabel.setBounds(patternArea.removeFromLeft(80));
-    patternTypeComboBox.setBounds(patternArea);
-
-    // Add buttons to the right
-    auto buttonArea = headerArea.removeFromRight(240);
-    randomizeButton.setBounds(buttonArea.removeFromLeft(120));
-    playButton.setBounds(buttonArea);
-
-    // Step display
-    auto displayArea = area.removeFromTop(150);
-    stepDisplay.setBounds(displayArea);
-
-    // Transport sync toggle below the step display
-    syncButton.setBounds(area.removeFromTop(30));
-
-    area.removeFromTop(10); // Add spacing
-
-    // Controls section - create rows for the parameters with consistent heights
-    auto controlHeight = 40;
-
-    // Rate
-    auto rateArea = area.removeFromTop(controlHeight);
-    rateLabel.setBounds(rateArea.removeFromLeft(80));
-    rateComboBox.setBounds(rateArea);
-
-    area.removeFromTop(10); // Spacing
-
-    // Density
-    auto densityArea = area.removeFromTop(controlHeight);
-    densityLabel.setBounds(densityArea.removeFromLeft(80));
-    densitySlider.setBounds(densityArea);
-
-    area.removeFromTop(10); // Spacing
-
-    // Offset
-    auto offsetArea = area.removeFromTop(controlHeight);
-    offsetLabel.setBounds(offsetArea.removeFromLeft(80));
-    offsetSlider.setBounds(offsetArea);
-
-    area.removeFromTop(10); // Spacing
-
-    // Gate - Make sure there's room for this
-    auto gateArea = area.removeFromTop(controlHeight);
-    gateLabel.setBounds(gateArea.removeFromLeft(80));
-    gateSlider.setBounds(gateArea.withWidth(juce::jmax(50, gateArea.getWidth())));
-
-    area.removeFromTop(10); // Spacing
-
-    // Root - Make sure there's room for this
-    auto rootArea = area.removeFromTop(controlHeight);
-    rootLabel.setBounds(rootArea.removeFromLeft(80));
-    rootSlider.setBounds(rootArea.withWidth(juce::jmax(50, rootArea.getWidth())));
-
-    // Debug print to see if we have enough space
-    DEBUG_LOG("Remaining area height: " << area.getHeight());
-}
-
-void RandomWalkSequencerEditor::timerCallback()
-{
-    // Update controls from processor values, if needed
-    if (rateComboBox.getSelectedItemIndex() != randomWalkProcessor.getRate()) // Using renamed processor
-        rateComboBox.setSelectedItemIndex(randomWalkProcessor.getRate()); // Using renamed processor
-
-    if (static_cast<int>(densitySlider.getValue()) != randomWalkProcessor.getDensity()) // Using renamed processor
-        densitySlider.setValue(randomWalkProcessor.getDensity()); // Using renamed processor
-
-    if (static_cast<int>(offsetSlider.getValue()) != randomWalkProcessor.getOffset()) // Using renamed processor
-        offsetSlider.setValue(randomWalkProcessor.getOffset()); // Using renamed processor
-
-    if (std::abs(gateSlider.getValue() - randomWalkProcessor.getGate()) > 0.01) // Using renamed processor
-        gateSlider.setValue(randomWalkProcessor.getGate()); // Using renamed processor
-
-    if (static_cast<int>(rootSlider.getValue()) != randomWalkProcessor.getRoot()) // Using renamed processor
-        rootSlider.setValue(randomWalkProcessor.getRoot()); // Using renamed processor
-
-    // Update play button state
-    bool isProcessorPlaying = randomWalkProcessor.getIsPlaying();
-    if (playButton.getToggleState() != isProcessorPlaying)
+    // Initialize all steps to enabled
+    for (int i = 0; i < numSteps; ++i)
     {
-        playButton.setToggleState(isProcessorPlaying, juce::dontSendNotification);
-        playButton.setButtonText(isProcessorPlaying ? "Stop" : "Play");
+        enabledSteps[i] = true;
     }
 
-    // Repaint the step display
-    stepDisplay.repaint();
+    // Calculate timing values
+    updateTimingInfo();
+
+    // Generate initial sequence
+    generateRandomWalk();
+
+    DEBUG_LOG("Processor created with random walk pattern");
 }
 
-RandomWalkSequencerEditor::StepDisplay::StepDisplay(RandomWalkSequencer& proc)
-    : processor(proc)
+RandomWalkSequencer::~RandomWalkSequencer()
 {
-    // Enable mouse events only
-    setInterceptsMouseClicks(true, true);
 
-    // Remove the setTooltip line
-
-    // Make cursor change to indicate editable area
-    setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
 }
 
-int RandomWalkSequencerEditor::StepDisplay::getStepNumberFromMousePosition(const juce::MouseEvent& e)
+// Implementation of new methods for manual step control
+bool RandomWalkSequencer::isStepEnabled(int step) const
 {
-    const int numSteps = 16;
-    const float w = (float)getWidth() / numSteps;
-
-    // Calculate which step was clicked
-    int stepNumber = (int)(e.position.x / w);
-
-    // Ensure valid range
-    return juce::jlimit(0, numSteps - 1, stepNumber);
-}
-
-int RandomWalkSequencerEditor::StepDisplay::yPositionToNoteValue(float y)
-{
-    float h = (float)getHeight();
-    float midPoint = h * 0.5f;
-
-    // Convert y position to note value
-    // The range is -12 to +12 semitones
-    float relativeY = midPoint - y;
-    int noteValue = (int)(relativeY / (h / 24.0f));
-
-    // Limit to reasonable range
-    return juce::jlimit(-12, 12, noteValue);
-}
-
-void RandomWalkSequencerEditor::StepDisplay::mouseDown(const juce::MouseEvent& e)
-{
-    // Identify which step was clicked
-    draggedStep = getStepNumberFromMousePosition(e);
-}
-
-void RandomWalkSequencerEditor::StepDisplay::mouseDrag(const juce::MouseEvent& e)
-{
-    if (draggedStep >= 0)
+    if (step >= 0 && step < numSteps)
     {
-        // Convert mouse y position to note value
-        int noteValue = yPositionToNoteValue(e.position.y);
+        return enabledSteps[step];
+    }
+    return false;
+}
 
-        // Update the sequence step value
-        processor.setSequenceValue(draggedStep, noteValue);
-
-        // Redraw the component
-        repaint();
+void RandomWalkSequencer::toggleStepEnabled(int step)
+{
+    if (step >= 0 && step < numSteps)
+    {
+        enabledSteps[step] = !enabledSteps[step];
     }
 }
 
-void RandomWalkSequencerEditor::StepDisplay::mouseUp(const juce::MouseEvent& /*e*/)
+void RandomWalkSequencer::setManualStepMode(bool isManual)
 {
-    // Reset dragged step
-    draggedStep = -1;
+    manualStepMode = isManual;
+
+    // If we're disabling manual mode, reset all steps to enabled
+    if (!isManual)
+    {
+        resetEnabledSteps();
+    }
 }
 
-// Implement StepDisplay
-void RandomWalkSequencerEditor::StepDisplay::paint(juce::Graphics& g)
+void RandomWalkSequencer::resetEnabledSteps()
 {
-    g.fillAll(juce::Colours::darkgrey);
+    // Reset all steps to enabled
+    for (int i = 0; i < numSteps; ++i)
+    {
+        enabledSteps[i] = true;
+    }
+}
 
-    const int numSteps = 16;
-    const float w = (float)getWidth() / numSteps;
-    const float h = (float)getHeight();
-    const float midPoint = h * 0.5f;
+void RandomWalkSequencer::prepareToPlay(double sampleRateToUse, int /*samplesPerBlock*/)
+{
+    this->sampleRate = sampleRateToUse;
 
-    try {
-        // Get current parameters from processor
-        int currentDensity = processor.getDensity();
-        int currentOffset = processor.getOffset();
+    // Reset playback state
+    currentStep = 0;
+    sampleCounter = 0.0;
+    noteIsOn = false;
 
-        // Get the current step (un-offset)
-        int baseCurrentStep = processor.getCurrentStep();
+    // Initialize timing information
+    updateTimingInfo();
 
-        // Calculate the actual playing step with offset
-        int actualCurrentStep = (baseCurrentStep + currentOffset) % numSteps;
+    DEBUG_LOG("prepareToPlay called, sampleRate = " << sampleRateToUse);
+}
 
-        // Draw steps
-        for (int i = 0; i < numSteps; ++i)
+void RandomWalkSequencer::releaseResources()
+{
+    // Turn off sequencer when the plugin is deactivated
+    isPlaying = false;
+
+    // Make sure no notes are left on
+    if (noteIsOn)
+    {
+        juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
+        juce::MidiBuffer tempBuffer;
+        tempBuffer.addEvent(noteOff, 0);
+        noteIsOn = false;
+    }
+}
+
+bool RandomWalkSequencer::supportsDoublePrecisionProcessing() const
+{
+    return false;
+}
+
+juce::AudioProcessor::ProcessingPrecision RandomWalkSequencer::getProcessingPrecision() const
+{
+    return juce::AudioProcessor::singlePrecision;
+}
+
+void RandomWalkSequencer::processBlockBypassed(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& /*midiMessages*/)
+{
+    buffer.clear();
+}
+
+void RandomWalkSequencer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
+{
+    // Clear audio buffer since this is a MIDI effect only
+    buffer.clear();
+
+    // Get buffer size
+    auto numSamples = buffer.getNumSamples();
+
+    // Create a MIDI buffer for our output
+    juce::MidiBuffer processedMidi;
+
+    // Pass through any incoming MIDI messages to our processed MIDI buffer
+    for (const auto& metadata : midiMessages)
+    {
+        processedMidi.addEvent(metadata.getMessage(), metadata.samplePosition);
+    }
+
+    // Process our sequencer if we're properly initialized
+    if (sampleRate > 0.0 && stepDuration > 0.0 && isPlaying)
+    {
+        // Track the time within this buffer
+        int samplePosition = 0;
+
+        while (samplePosition < numSamples)
         {
-            // Determine if this step is part of the loop range
-            bool isInLoopRange = false;
+            // Check if we need to advance to next step
+            if (sampleCounter >= stepDuration)
+            {
+                // Reset the sample counter for the next step
+                sampleCounter -= stepDuration;
 
-            // Check if this step is within the current playing range
-            for (int step = 0; step < currentDensity; step++) {
-                int loopStep = (currentOffset + step) % numSteps;
-                if (i == loopStep) {
-                    isInLoopRange = true;
-                    break;
+                // Turn off previous note if it's still on
+                if (noteIsOn)
+                {
+                    auto noteOffMessage = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
+                    processedMidi.addEvent(noteOffMessage, samplePosition);
+                    noteIsOn = false;
+                }
+
+                // Advance to the next step based on mode
+                if (manualStepMode)
+                {
+                    // In Manual Step mode: All 16 steps are looped through,
+                    // but only enabled steps produce sound
+                    currentStep = (currentStep + 1) % numSteps;
+                }
+                else
+                {
+                    // In Density mode: Only steps within density range are looped
+                    currentStep = (currentStep + 1) % densityValue;
+                }
+
+                // Calculate the actual step index in the sequence, considering offset
+                int actualStepIndex = (currentStep + offsetValue) % numSteps;
+
+                // Determine if we should play a note for this step
+                bool shouldPlayNote;
+
+                if (manualStepMode)
+                {
+                    // In Manual Step mode: Only play if step is enabled
+                    shouldPlayNote = enabledSteps[actualStepIndex];
+                }
+                else
+                {
+                    // In Density mode: Always play the steps in range
+                    shouldPlayNote = true;
+                }
+
+                if (shouldPlayNote)
+                {
+                    // Calculate the MIDI note for this step
+                    int noteValue = getNoteForStep(actualStepIndex);
+
+                    // Send note on message with velocity based on step
+                    juce::uint8 velocity = 80 + (juce::uint8)(30.0 * std::abs(sequence[actualStepIndex]) / 12.0);
+                    auto noteOnMessage = juce::MidiMessage::noteOn(1, noteValue, velocity);
+                    processedMidi.addEvent(noteOnMessage, samplePosition);
+
+                    // Remember this note and that we've turned it on
+                    lastNoteValue = noteValue;
+                    noteIsOn = true;
                 }
             }
 
-            // Determine if this is the current playing step
-            bool isCurrent = (i == actualCurrentStep);
-            bool isBeingDragged = (i == draggedStep);
+            // Determine how many samples to process next
+            auto samplesThisSegment = juce::jmin(numSamples - samplePosition,
+                                              (int) (stepDuration - sampleCounter));
 
-            // Draw step rectangle
-            juce::Rectangle<float> stepRect(i * w, 0, w - 2, h);
+            // Check if we need to turn off the note based on gate time
+            if (noteIsOn && (sampleCounter + samplesThisSegment >= getNoteLength()))
+            {
+                // Calculate exact sample position for note off
+                auto noteOffPosition = samplePosition + (int) (getNoteLength() - sampleCounter);
 
-            // Color based on step status
-            if (isBeingDragged)
-                g.setColour(juce::Colours::brown);  // Change from yellow to brown for dragged steps
-            else if (isCurrent)
-                g.setColour(juce::Colours::orange);  // Current playing step
-            else if (isInLoopRange)
-                g.setColour(juce::Colours::lightgreen);  // In play range but not current
-            else
-                g.setColour(juce::Colours::grey);  // Outside play range
+                // Send note off message
+                auto noteOffMessage = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
+                processedMidi.addEvent(noteOffMessage, noteOffPosition);
 
-            g.fillRect(stepRect);
+                noteIsOn = false;
+            }
 
-            // Draw note value as a line
-            int noteOffset = processor.getSequenceValue(i);
-            float lineY = midPoint - (noteOffset * (h / 24.0f)); // Scale to fit in view
+            // Advance our counters
+            sampleCounter += samplesThisSegment;
+            samplePosition += samplesThisSegment;
+        }
+    }
 
-            // Draw the note line with a different color when dragging
-            g.setColour(isBeingDragged ? juce::Colours::white : juce::Colours::white);  // Always use white for the line
-            g.drawLine(i * w, lineY, (i + 1) * w - 2, lineY, isBeingDragged ? 3.0f : 2.0f);
+    // Replace original MIDI with our processed MIDI
+    midiMessages.swapWith(processedMidi);
+}
 
-            // Draw note value text
-            g.setFont(12.0f);
-            g.setColour(juce::Colours::white);  // Always use white for text to ensure readability
-            g.drawText(juce::String(noteOffset),
-                      stepRect.reduced(2),
-                      juce::Justification::topLeft,
-                      true);
+bool RandomWalkSequencer::isBusesLayoutSupported(const BusesLayout& layouts) const
+{
+    // For a MIDI effect, we only support disabled audio channels
+    return layouts.getMainInputChannelSet() == juce::AudioChannelSet::disabled() &&
+           layouts.getMainOutputChannelSet() == juce::AudioChannelSet::disabled();
+}
 
-            // Draw step number for clarity
-            g.setFont(10.0f);
-            g.drawText(juce::String(i),
-                     stepRect.reduced(2),
-                     juce::Justification::bottomRight,
-                     true);
+// Add more pattern generation algorithms for different musical feels
+
+// Generate an ascending pattern
+void RandomWalkSequencer::generateAscendingPattern()
+{
+    juce::Random random;
+
+    // Start from a low value
+    int currentValue = -6;
+
+    // Generate an ascending pattern
+    for (int i = 0; i < numSteps; ++i)
+    {
+        // Add some randomness but mostly ascending
+        if (random.nextFloat() < 0.2f)
+            currentValue--; // Occasionally go down for interest
+        else
+            currentValue++;
+
+        // Keep within reasonable range
+        if (currentValue < -12) currentValue = -12;
+        if (currentValue > 12) currentValue = 12;
+
+        // Store the value
+        sequence[i] = currentValue;
+    }
+}
+
+// Generate a descending pattern
+void RandomWalkSequencer::generateDescendingPattern()
+{
+    juce::Random random;
+
+    // Start from a high value
+    int currentValue = 6;
+
+    // Generate a descending pattern
+    for (int i = 0; i < numSteps; ++i)
+    {
+        // Add some randomness but mostly descending
+        if (random.nextFloat() < 0.2f)
+            currentValue++; // Occasionally go up for interest
+        else
+            currentValue--;
+
+        // Keep within reasonable range
+        if (currentValue < -12) currentValue = -12;
+        if (currentValue > 12) currentValue = 12;
+
+        // Store the value
+        sequence[i] = currentValue;
+    }
+}
+
+// Generate a pattern with musical intervals (e.g., arpeggios)
+void RandomWalkSequencer::generateArpeggioPattern()
+{
+    // Define some musical intervals (semitones)
+    const int intervals[] = { 0, 4, 7, 12 }; // Major chord: root, major third, perfect fifth, octave
+    const int numIntervals = 4;
+
+    juce::Random random;
+
+    for (int i = 0; i < numSteps; ++i)
+    {
+        // Choose a random interval from our chord
+        int intervalIndex = random.nextInt(numIntervals);
+        int value = intervals[intervalIndex];
+
+        // Occasionally invert down an octave for bass notes
+        if (random.nextFloat() < 0.3f && value > 0)
+            value -= 12;
+
+        sequence[i] = value;
+    }
+}
+
+void RandomWalkSequencer::getStateInformation(juce::MemoryBlock& destData)
+{
+    // Create XML to store parameter values
+    juce::XmlElement xml("RandomWalkSequencerState");
+
+    // Add parameters
+    xml.setAttribute("rate", rateValue);
+    xml.setAttribute("density", densityValue);
+    xml.setAttribute("offset", offsetValue);
+    xml.setAttribute("gate", gateValue);
+    xml.setAttribute("root", rootValue);
+    xml.setAttribute("manualStepMode", manualStepMode);
+
+    // Add sequence data
+    juce::XmlElement* sequenceXml = xml.createNewChildElement("Sequence");
+    for (int i = 0; i < numSteps; ++i)
+    {
+        sequenceXml->setAttribute("Step" + juce::String(i), sequence[i]);
+        sequenceXml->setAttribute("Enabled" + juce::String(i), enabledSteps[i]);
+    }
+
+    // Write to binary
+    copyXmlToBinary(xml, destData);
+    DEBUG_LOG("State saved");
+}
+
+void RandomWalkSequencer::setStateInformation(const void* data, int sizeInBytes)
+{
+    // Parse XML from binary
+    std::unique_ptr<juce::XmlElement> xmlState(getXmlFromBinary(data, sizeInBytes));
+
+    if (xmlState != nullptr && xmlState->hasTagName("RandomWalkSequencerState"))
+    {
+        // Restore parameters
+        rateValue = xmlState->getIntAttribute("rate", 1);
+        densityValue = xmlState->getIntAttribute("density", 16);
+        offsetValue = xmlState->getIntAttribute("offset", 0);
+        gateValue = xmlState->getDoubleAttribute("gate", 0.5);
+        rootValue = xmlState->getIntAttribute("root", 60);
+        manualStepMode = xmlState->getBoolAttribute("manualStepMode", false);
+
+        // Restore sequence data
+        juce::XmlElement* sequenceXml = xmlState->getChildByName("Sequence");
+        if (sequenceXml != nullptr)
+        {
+            for (int i = 0; i < numSteps; ++i)
+            {
+                if (sequenceXml->hasAttribute("Step" + juce::String(i)))
+                {
+                    sequence[i] = sequenceXml->getIntAttribute("Step" + juce::String(i));
+                }
+
+                if (sequenceXml->hasAttribute("Enabled" + juce::String(i)))
+                {
+                    enabledSteps[i] = sequenceXml->getBoolAttribute("Enabled" + juce::String(i), true);
+                }
+            }
         }
 
-        // Draw center line (for reference)
-        g.setColour(juce::Colours::darkgrey.brighter(0.3f));
-        g.drawLine(0, midPoint, getWidth(), midPoint, 1.0f);
+        DEBUG_LOG("State restored");
     }
-    catch (const std::exception& e) {
-        DEBUG_LOG("Exception in paint: " << e.what());
+}
+
+juce::AudioProcessorEditor* RandomWalkSequencer::createEditor()
+{
+    return new RandomWalkSequencerEditor(*this);
+}
+
+bool RandomWalkSequencer::hasEditor() const
+{
+    return true;
+}
+
+void RandomWalkSequencer::parameterChanged(const juce::String&, float)
+{
+    // Not used without AudioProcessorValueTreeState
+}
+
+// Custom parameter getters/setters
+int RandomWalkSequencer::getRate() const { return rateValue; }
+int RandomWalkSequencer::getDensity() const { return densityValue; }
+int RandomWalkSequencer::getOffset() const { return offsetValue; }
+float RandomWalkSequencer::getGate() const { return gateValue; }
+int RandomWalkSequencer::getRoot() const { return rootValue; }
+
+void RandomWalkSequencer::setRate(int value) { rateValue = value; updateTimingInfo(); }
+void RandomWalkSequencer::setDensity(int value)
+{
+    // Only update if value changed
+    if (densityValue != value) {
+        densityValue = value;
+
+        // Reset currentStep if it's now outside the loop range
+        if (currentStep >= densityValue) {
+            currentStep = 0;
+        }
     }
-    catch (...) {
-        DEBUG_LOG("Unknown exception in paint");
+}
+void RandomWalkSequencer::setOffset(int value) { offsetValue = value; }
+void RandomWalkSequencer::setGate(float value) { gateValue = value; }
+void RandomWalkSequencer::setRoot(int value) { rootValue = value; }
+
+// Core functionality
+void RandomWalkSequencer::randomizeSequence(int patternType)
+{
+    // Save the current enabled states if in manual mode
+    bool savedEnabledStates[numSteps];
+    if (manualStepMode)
+    {
+        for (int i = 0; i < numSteps; ++i)
+        {
+            savedEnabledStates[i] = enabledSteps[i];
+        }
     }
+
+    switch (patternType)
+    {
+        case 0: // Random walk
+            generateRandomWalk();
+        break;
+
+        case 1: // Ascending
+            generateAscendingPattern();
+        break;
+
+        case 2: // Descending
+            generateDescendingPattern();
+        break;
+
+        case 3: // Arpeggio
+            generateArpeggioPattern();
+        break;
+
+        default:
+            generateRandomWalk();
+    }
+
+    // Restore the enabled states if in manual mode
+    if (manualStepMode)
+    {
+        for (int i = 0; i < numSteps; ++i)
+        {
+            enabledSteps[i] = savedEnabledStates[i];
+        }
+    }
+
+    // Notify that sequence has changed (useful for GUI updates)
+    if (auto* editor = dynamic_cast<RandomWalkSequencerEditor*>(getActiveEditor()))
+        editor->repaint();
+}
+
+// Add a method to start/stop the sequencer
+void RandomWalkSequencer::setPlaying(bool shouldPlay)
+{
+    // Only update if the state is actually changing
+    if (isPlaying != shouldPlay)
+    {
+        isPlaying = shouldPlay;
+
+        // If starting playback, reset counters and stop any hanging notes
+        if (isPlaying)
+        {
+            sampleCounter = 0.0;
+            currentStep = numSteps - 1; // Will increment to 0 on first step
+
+            // Make sure no notes are left on
+            if (noteIsOn)
+            {
+                juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
+                juce::MidiBuffer tempBuffer;
+                tempBuffer.addEvent(noteOff, 0);
+                noteIsOn = false;
+            }
+        }
+    }
+}
+
+void RandomWalkSequencer::setSequenceValue(int step, int value)
+{
+    // Ensure step is in valid range
+    if (step >= 0 && step < numSteps)
+    {
+        // Limit value to reasonable range (-12 to +12 semitones)
+        value = juce::jlimit(-12, 12, value);
+
+        // Update the sequence
+        sequence[step] = value;
+    }
+}
+
+// Add accessor for isPlaying state
+bool RandomWalkSequencer::getIsPlaying() const
+{
+    return isPlaying;
+}
+
+// Implement the missing JUCE processor callbacks
+const juce::String RandomWalkSequencer::getName() const
+{
+    return "RandomWalkSequencer";
+}
+
+// Update the timing information when BPM or time signature changes
+void RandomWalkSequencer::updateTimingInfo()
+{
+    // Get host information if available
+    auto* playHead = getPlayHead();
+    juce::AudioPlayHead::CurrentPositionInfo posInfo;
+
+    if (playHead != nullptr && playHead->getCurrentPosition(posInfo))
+    {
+        // Update BPM from host
+        bpm = posInfo.bpm;
+
+        // Sync with host transport if it's playing
+        if (posInfo.isPlaying && !isPlaying)
+            setPlaying(true);
+        else if (!posInfo.isPlaying && isPlaying)
+            setPlaying(false);
+
+        // Optionally sync to host time signature
+        // Could adjust timing based on posInfo.timeSigNumerator and posInfo.timeSigDenominator
+    }
+
+    // Calculate samples per beat
+    samplesPerBeat = (60.0 / bpm) * sampleRate;
+
+    // Calculate step duration based on rate
+    stepDuration = samplesPerBeat * getRateInSeconds();
+}
+
+float RandomWalkSequencer::getRateInSeconds() const
+{
+    // Convert rate parameter to actual timing value
+    const float rateValues[] = { 1.0f/32.0f, 1.0f/16.0f, 1.0f/8.0f, 1.0f/4.0f, 1.0f/3.0f, 1.0f/2.0f, 1.0f, 2.0f, 3.0f, 4.0f };
+    return rateValues[rateValue];
+}
+
+void RandomWalkSequencer::generateRandomWalk()
+{
+    juce::Random random;
+
+    // Parameters for enhanced random walk with much more variability
+    const int maxJump = 7;              // Increased maximum basic step size
+    const int maxRange = 12;            // Maximum range (one octave)
+    const float stayProb = 0.05f;       // Reduced probability to stay on same note
+    const float bigJumpProb = 0.25f;    // Increased probability for larger jumps
+    const float patternBreakProb = 0.1f; // Probability to break a pattern completely
+    const float resetProb = 0.05f;      // Probability to reset to center
+
+    // Start from a random point rather than always the middle
+    int currentValue = random.nextInt(maxRange * 2 + 1) - maxRange;
+    sequence[0] = currentValue;
+
+    int prevDirection = 0;
+    int consecutiveSteps = 0;
+
+    // Generate pattern with more deliberate changes in direction
+    for (int i = 1; i < numSteps; ++i)
+    {
+        // Occasionally reset to create phrases
+        if (random.nextFloat() < resetProb) {
+            currentValue = random.nextInt(maxRange * 2 + 1) - maxRange; // Random reset point
+            consecutiveSteps = 0;
+            prevDirection = 0;
+        }
+        // Decide if we should break the pattern
+        else if (random.nextFloat() < patternBreakProb || consecutiveSteps > 3) {
+            // Force a direction change to break monotony
+            prevDirection = prevDirection == 0 ? (random.nextBool() ? 1 : -1) : -prevDirection;
+
+            // Make a significant jump to break the pattern
+            int jumpSize = 3 + random.nextInt(9); // Jumps of 3 to 12 semitones
+            currentValue += prevDirection * jumpSize;
+            consecutiveSteps = 0;
+        }
+        // Stay on same note occasionally
+        else if (random.nextFloat() < stayProb) {
+            // Do nothing - stay on same note
+            consecutiveSteps = 0;
+        }
+        else {
+            // Choose a direction that might be different from previous
+            int direction;
+
+            if (consecutiveSteps >= 2 && random.nextFloat() < 0.7f) {
+                // After 2+ steps in same direction, higher chance of change
+                direction = -prevDirection;
+            } else {
+                // Random direction with slight bias toward previous
+                direction = (random.nextFloat() < 0.4f) ?
+                    -prevDirection : (prevDirection != 0 ? prevDirection : (random.nextBool() ? 1 : -1));
+            }
+
+            // Determine step size with more variety
+            int stepSize;
+            if (random.nextFloat() < bigJumpProb) {
+                // Larger jumps for more variety
+                stepSize = 4 + random.nextInt(maxJump);
+            } else {
+                // Use different step size distribution
+                // Higher probability of 1,2,3 steps, lower for larger steps
+                float r = random.nextFloat();
+                if (r < 0.5f)
+                    stepSize = 1;
+                else if (r < 0.8f)
+                    stepSize = 2;
+                else
+                    stepSize = 3 + random.nextInt(maxJump - 2);
+            }
+
+            // Apply the step
+            currentValue += direction * stepSize;
+
+            // Update tracking variables
+            if (direction == prevDirection)
+                consecutiveSteps++;
+            else {
+                prevDirection = direction;
+                consecutiveSteps = 1;
+            }
+        }
+
+        // Keep within range but with soft boundaries
+        if (currentValue > maxRange) {
+            if (random.nextFloat() < 0.7f) {
+                // Usually reflect back
+                currentValue = maxRange - (currentValue - maxRange);
+                prevDirection = -prevDirection;
+            } else {
+                // Sometimes just clamp
+                currentValue = maxRange;
+            }
+        } else if (currentValue < -maxRange) {
+            if (random.nextFloat() < 0.7f) {
+                // Usually reflect back
+                currentValue = -maxRange + (-maxRange - currentValue);
+                prevDirection = -prevDirection;
+            } else {
+                // Sometimes just clamp
+                currentValue = -maxRange;
+            }
+        }
+
+        // Store the value
+        sequence[i] = currentValue;
+    }
+
+    // Add a final pass to ensure melodic interest
+    enhanceSequenceMelodically();
+
+    DEBUG_LOG("Enhanced random walk sequence generated with high variability");
+}
+
+// Add this helper method to further enhance the sequence
+void RandomWalkSequencer::enhanceSequenceMelodically()
+{
+    juce::Random random;
+
+    // Find any boring sections (3+ consecutive steps in same direction)
+    for (int i = 2; i < numSteps-1; i++) {
+        int diff1 = sequence[i] - sequence[i-1];
+        int diff2 = sequence[i-1] - sequence[i-2];
+
+        // If we have 3 steps moving in the same direction with same interval
+        if (diff1 == diff2 && diff1 != 0) {
+            // Break the pattern by adding a jump or change
+            if (random.nextBool()) {
+                // Reverse direction
+                sequence[i+1] = sequence[i] - diff1;
+            } else {
+                // Make a jump
+                sequence[i+1] = sequence[i] + (random.nextBool() ? 3 : -3);
+            }
+            i++; // Skip the fixed note
+        }
+    }
+
+    // Create a few accents by adding octave jumps
+    int numAccents = 1 + random.nextInt(2); // 1-2 accents
+    for (int i = 0; i < numAccents; i++) {
+        int pos = 2 + random.nextInt(numSteps - 3); // Not too close to start/end
+        // Jump up or down an octave if within range
+        int newValue = sequence[pos] + (random.nextBool() ? 12 : -12);
+        if (newValue >= -12 && newValue <= 12) {
+            sequence[pos] = newValue;
+        }
+    }
+}
+
+int RandomWalkSequencer::getNoteForStep(int step)
+{
+    // step is already offset-adjusted, so use it directly to access the sequence array
+    return rootValue + sequence[step];
+}
+
+double RandomWalkSequencer::getNoteLength()
+{
+    return stepDuration * gateValue;
+}
+
+void RandomWalkSequencerEditor::updateManualStepToggle(bool state)
+{
+    manualStepToggle.setToggleState(state, juce::sendNotification);
+    // Using sendNotification instead of dontSendNotification will trigger the onChange callback
+    // which will update the processor and the density slider state
 }
