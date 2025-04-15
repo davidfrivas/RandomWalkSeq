@@ -92,6 +92,7 @@ public:
     bool supportsDoublePrecisionProcessing() const override;
     juce::AudioProcessor::ProcessingPrecision getProcessingPrecision() const;
     void processBlockBypassed(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
+    bool getSyncToHostTransport() const { return syncToHostTransport; }
 
 private:
     // Manual parameter values

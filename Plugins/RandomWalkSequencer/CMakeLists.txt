@@ -6,7 +6,7 @@ juce_add_plugin("${BaseTargetName}"
         # VERSION ...                               # Set this if the plugin version is different to the project version
         # ICON_BIG ...                              # ICON_* arguments specify a path to an image file to use as an icon for the Standalone
         # ICON_SMALL ...
-        COMPANY_NAME ""
+        COMPANY_NAME "davidRivas"
         IS_SYNTH FALSE
         NEEDS_MIDI_INPUT TRUE
         NEEDS_MIDI_OUTPUT TRUE
@@ -30,10 +30,13 @@ target_compile_definitions(${BaseTargetName}
         PUBLIC
         JUCE_WEB_BROWSER=0
         JUCE_USE_CURL=0
-        JUCE_VST3_CAN_REPLACE_VST2=0
+        JUCE_VST3_CAN_REPLACE_VST2=0  # This is important
+        JUCE_PLUGINHOST_VST=0
+        JUCE_PLUGINHOST_VST3=0
+        # Add specific VST3 category for MIDI effects
+        JUCE_VST3_EMULATE_MIDI_CC_WITH_PARAMETERS=0
         PRIVATE
-        JUCE_MIDI_EFFECT=1
-        JUCE_AUDIO_PROCESSOR_NO_GUI=0)
+        JUCE_MIDI_EFFECT=1)
 
 target_link_libraries(${BaseTargetName} PRIVATE
         juce_audio_utils
