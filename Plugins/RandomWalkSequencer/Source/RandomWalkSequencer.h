@@ -131,7 +131,7 @@ private:
     void enhanceSequenceMelodically();
 
     // Transport settings
-    bool syncToHostTransport = true;
+    bool syncToHostTransport = false;
 
     // Update timing based on host information
     void updateTimingInfo();

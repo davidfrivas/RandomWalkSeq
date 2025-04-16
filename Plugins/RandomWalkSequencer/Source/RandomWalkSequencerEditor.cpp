@@ -157,7 +157,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
 
     // Transport sync toggle
     syncButton.setButtonText("Sync to Host Transport");
-    syncButton.setToggleState(true, juce::dontSendNotification);
+    syncButton.setToggleState(false, juce::dontSendNotification);
     syncButton.onClick = [this] {
         bool syncState = syncButton.getToggleState();
         randomWalkProcessor.setSyncToHostTransport(syncState);
@@ -178,7 +178,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     bpmSlider.onValueChange = [this] {
         randomWalkProcessor.setInternalBpm(bpmSlider.getValue());
     };
-    bpmSlider.setEnabled(!randomWalkProcessor.getSyncToHostTransport());
+    bpmSlider.setEnabled(true);
     addAndMakeVisible(bpmSlider);
 
     // Manual Step toggle
