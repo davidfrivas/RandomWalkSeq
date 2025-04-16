@@ -42,6 +42,10 @@ private:
     juce::ToggleButton manualStepToggle;
     juce::Label manualStepLabel;
 
+    juce::TextButton transposeUpButton;
+    juce::TextButton transposeDownButton;
+    juce::Label transposeLabel;
+
     // Step display
     class StepDisplay : public juce::Component
     {
@@ -80,6 +84,8 @@ private:
 
     juce::Slider bpmSlider;
     juce::Label bpmLabel;
+
+    void updateRootNoteDisplay();
 
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RandomWalkSequencerEditor)
 };

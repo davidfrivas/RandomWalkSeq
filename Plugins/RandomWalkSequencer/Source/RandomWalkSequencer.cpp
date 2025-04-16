@@ -16,7 +16,7 @@ RandomWalkSequencer::RandomWalkSequencer()
     densityValue = 8;    // Default to 8 steps
     offsetValue = 0;     // Default to no offset
     gateValue = 0.5f;    // Default gate time 50%
-    rootValue = 60;      // Default to C4
+    rootValue = 72;      // Default to C5
 
     // Initialize timing variables
     sampleRate = 44100.0;
@@ -417,8 +417,9 @@ void RandomWalkSequencer::setStateInformation(const void* data, int sizeInBytes)
         densityValue = xmlState->getIntAttribute("density", 16);
         offsetValue = xmlState->getIntAttribute("offset", 0);
         gateValue = static_cast<float>(xmlState->getDoubleAttribute("gate", 0.5));
-        rootValue = xmlState->getIntAttribute("root", 60);
+        rootValue = xmlState->getIntAttribute("root", 72);  // Changed from 60 to 72
         manualStepMode = xmlState->getBoolAttribute("manualStepMode", false);
+        internalBpm = xmlState->getDoubleAttribute("internalBpm", 120.0); // Restore internal BPM
 
         // Restore sequence data
         juce::XmlElement* sequenceXml = xmlState->getChildByName("Sequence");
@@ -856,5 +857,35 @@ void RandomWalkSequencer::setInternalBpm(double newBpm)
     {
         bpm = internalBpm;
         updateTimingInfo();
+    }
+}
+
+void RandomWalkSequencer::transposeOctaveUp()
+{
+    // Don't transpose above C9 (MIDI note 120)
+    if (rootValue <= 108) // C9 - 12 = 108 to ensure we can go up one octave
+    {
+        rootValue += 12;
+        DEBUG_LOG("Transposed up one octave: Root = " << rootValue);
+    }
+    else
+    {
+        // Optionally add feedback when limit is reached
+        DEBUG_LOG("Cannot transpose higher than C9");
+    }
+}
+
+void RandomWalkSequencer::transposeOctaveDown()
+{
+    // Don't transpose below C0 (MIDI note 12)
+    if (rootValue >= 24) // C0 + 12 = 24 to ensure we can go down one octave
+    {
+        rootValue -= 12;
+        DEBUG_LOG("Transposed down one octave: Root = " << rootValue);
+    }
+    else
+    {
+        // Optionally add feedback when limit is reached
+        DEBUG_LOG("Cannot transpose lower than C0");
     }
 }

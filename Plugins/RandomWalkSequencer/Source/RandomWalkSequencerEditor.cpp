@@ -67,24 +67,42 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     addAndMakeVisible(rootLabel);
 
     rootSlider.setSliderStyle(juce::Slider::SliderStyle::LinearHorizontal);
-    rootSlider.setRange(60, 72, 1); // MIDI notes from C4 to C5
+    rootSlider.setRange(12, 120, 1); // From C0 to C9
     rootSlider.setTextBoxStyle(juce::Slider::TextBoxRight, false, 80, 20); // Wider for note name display
     // Update the note name display function that's called when the slider value changes
     rootSlider.onValueChange = [this] {
         int value = static_cast<int>(rootSlider.getValue());
         randomWalkProcessor.setRoot(value);
-
-        // Update note name display
-        static const char* noteNames[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
-        int noteIndex = value % 12;
-        int octave = value / 12 - 1;  // MIDI note 60 is C4
-        juce::String noteName = juce::String(noteNames[noteIndex]) + juce::String(octave);
-        rootSlider.setTextValueSuffix(" (" + noteName + ")");
+        updateRootNoteDisplay();
     };
     addAndMakeVisible(rootSlider);
 
-    // Initialize note name display
-    rootSlider.onValueChange();
+    // Initialize slider with processor's value and update display
+    rootSlider.setValue(randomWalkProcessor.getRoot(), juce::dontSendNotification);
+    updateRootNoteDisplay();
+
+    // Transpose Octave controls
+    transposeLabel.setText("Transpose Octave", juce::dontSendNotification);
+    transposeLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(transposeLabel);
+
+    // Down button with caret symbol
+    transposeDownButton.setButtonText("v");
+    transposeDownButton.onClick = [this] {
+        randomWalkProcessor.transposeOctaveDown();
+        rootSlider.setValue(randomWalkProcessor.getRoot(), juce::dontSendNotification);
+        updateRootNoteDisplay();
+    };
+    addAndMakeVisible(transposeDownButton);
+
+    // Up button with caret symbol
+    transposeUpButton.setButtonText("^");
+    transposeUpButton.onClick = [this] {
+        randomWalkProcessor.transposeOctaveUp();
+        rootSlider.setValue(randomWalkProcessor.getRoot(), juce::dontSendNotification);
+        updateRootNoteDisplay();
+    };
+    addAndMakeVisible(transposeUpButton);
 
     // Randomize button
     randomizeButton.setButtonText("Randomize");
@@ -288,9 +306,26 @@ void RandomWalkSequencerEditor::resized()
     // Root - Make sure there's room for this
     auto rootArea = area.removeFromTop(controlHeight);
     rootLabel.setBounds(rootArea.removeFromLeft(80));
-    rootSlider.setBounds(rootArea.withWidth(juce::jmax(50, rootArea.getWidth())));
+    rootSlider.setBounds(rootArea.withWidth(juce::jmax(50, rootArea.getWidth() - 60))); // Make room for transpose buttons
 
+    // Add transpose buttons next to root slider
+    auto transposeWidth = 30;
+    auto transposeHeight = 20;
+    transposeUpButton.setBounds(rootArea.getRight() - transposeWidth, rootArea.getY(),
+                               transposeWidth, transposeHeight);
+    transposeDownButton.setBounds(rootArea.getRight() - transposeWidth, rootArea.getY() + transposeHeight,
+                                 transposeWidth, transposeHeight);
+
+    // OR, if you prefer the buttons on a new row:
     area.removeFromTop(10); // Spacing
+
+    // Transpose octave controls
+    auto transposeArea = area.removeFromTop(controlHeight);
+    transposeLabel.setBounds(transposeArea.removeFromLeft(120)); // Using wider label
+    auto transposeBtnWidth = 30;
+    transposeDownButton.setBounds(transposeArea.removeFromLeft(transposeBtnWidth));
+    transposeArea.removeFromLeft(5); // Small gap between buttons
+    transposeUpButton.setBounds(transposeArea.removeFromLeft(transposeBtnWidth));
 
     // Manual Step toggle
     auto manualStepArea = area.removeFromTop(controlHeight);
@@ -316,8 +351,15 @@ void RandomWalkSequencerEditor::timerCallback()
     if (std::abs(gateSlider.getValue() - randomWalkProcessor.getGate()) > 0.01) // Using renamed processor
         gateSlider.setValue(randomWalkProcessor.getGate()); // Using renamed processor
 
-    if (static_cast<int>(rootSlider.getValue()) != randomWalkProcessor.getRoot()) // Using renamed processor
-        rootSlider.setValue(randomWalkProcessor.getRoot()); // Using renamed processor
+    if (static_cast<int>(rootSlider.getValue()) != randomWalkProcessor.getRoot())
+    {
+        int newValue = randomWalkProcessor.getRoot();
+        // Ensure the value is within the slider's range
+        newValue = juce::jlimit((int)rootSlider.getMinimum(),
+                               (int)rootSlider.getMaximum(),
+                               newValue);
+        rootSlider.setValue(newValue);
+    }
 
     // Update play button state
     bool isProcessorPlaying = randomWalkProcessor.getIsPlaying();
@@ -547,4 +589,16 @@ void RandomWalkSequencerEditor::StepDisplay::paint(juce::Graphics& g)
     catch (...) {
         DEBUG_LOG("Unknown exception in paint");
     }
+}
+
+void RandomWalkSequencerEditor::updateRootNoteDisplay()
+{
+    int value = randomWalkProcessor.getRoot();
+
+    // Update note name display
+    static const char* noteNames[] = { "C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B" };
+    int noteIndex = value % 12;
+    int octave = value / 12 - 1;  // MIDI note 60 is C4
+    juce::String noteName = juce::String(noteNames[noteIndex]) + juce::String(octave);
+    rootSlider.setTextValueSuffix(" (" + noteName + ")");
 }

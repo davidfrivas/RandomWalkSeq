@@ -95,6 +95,8 @@ public:
     bool getSyncToHostTransport() const { return syncToHostTransport; }
     double getInternalBpm() const { return internalBpm; }
     void setInternalBpm(double newBpm);
+    void transposeOctaveUp();
+    void transposeOctaveDown();
 
 private:
     double internalBpm = 120.0; // Default internal BPM
