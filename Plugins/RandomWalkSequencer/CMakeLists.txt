@@ -12,6 +12,7 @@ juce_add_plugin("${BaseTargetName}"
         NEEDS_MIDI_OUTPUT TRUE
         IS_MIDI_EFFECT TRUE  # Add this line explicitly
         AU_MAIN_TYPE kAudioUnitType_MIDIProcessor
+        NEEDS_TRANSPORT TRUE
         EDITOR_WANTS_KEYBOARD_FOCUS FALSE
         COPY_PLUGIN_AFTER_BUILD TRUE
         PLUGIN_MANUFACTURER_CODE DaFR
