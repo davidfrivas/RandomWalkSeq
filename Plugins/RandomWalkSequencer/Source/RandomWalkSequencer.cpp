@@ -8,8 +8,8 @@
 // Minimal constructor with no AudioProcessorValueTreeState at all
 RandomWalkSequencer::RandomWalkSequencer()
     : AudioProcessor(BusesProperties()
-                     .withInput("MIDI In", juce::AudioChannelSet::stereo())  // Changed from disabled to stereo
-                     .withOutput("MIDI Out", juce::AudioChannelSet::stereo())) // Changed from disabled to stereo
+                     .withInput("MIDI In", juce::AudioChannelSet::stereo())
+                     .withOutput("MIDI Out", juce::AudioChannelSet::stereo()))
 {
     // Set up parameter values manually
     rateValue = 3;       // Default to quarter notes (1/4)
@@ -21,6 +21,7 @@ RandomWalkSequencer::RandomWalkSequencer()
     // Initialize timing variables
     sampleRate = 44100.0;
     bpm = 120.0;
+    internalBpm = 120.0; // Initialize internal BPM
 
     // Initialize all steps to enabled
     for (int i = 0; i < numSteps; ++i)
@@ -596,73 +597,62 @@ void RandomWalkSequencer::updateTimingInfo()
     // Reset sample counter at appropriate moments to ensure tight sync
     double oldBpm = bpm;
 
-    if (playHead != nullptr)
+    if (playHead != nullptr && syncToHostTransport)
     {
         juce::Optional<juce::AudioPlayHead::PositionInfo> posInfo = playHead->getPosition();
 
         if (posInfo.hasValue())
         {
-            // Update BPM from host if available
+            // Update BPM from host if available and synced
             if (posInfo->getBpm().hasValue())
                 bpm = *posInfo->getBpm();
 
             // Only control playback if we're synced to host
-            if (syncToHostTransport)
+            bool hostIsPlaying = posInfo->getIsPlaying();
+
+            // This section is crucial - make sure to get the correct playing state
+            if (hostIsPlaying && !isPlaying)
             {
-                bool hostIsPlaying = posInfo->getIsPlaying();
+                // Debug info - helps track down sync issues
+                DEBUG_LOG("Host started playing - starting sequencer");
 
-                // This section is crucial - make sure to get the correct playing state
-                if (hostIsPlaying && !isPlaying)
+                // Start the sequencer
+                isPlaying = true;
+                currentStep = numSteps - 1; // Will increment to 0 on first step
+                sampleCounter = 0.0;
+
+                // Make sure no notes are left on
+                if (noteIsOn)
                 {
-                    // Debug info - helps track down sync issues
-                    DEBUG_LOG("Host started playing - starting sequencer");
-
-                    // Start the sequencer
-                    isPlaying = true;
-                    currentStep = numSteps - 1; // Will increment to 0 on first step
-                    sampleCounter = 0.0;
-
-                    // Make sure no notes are left on
-                    if (noteIsOn)
-                    {
-                        juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
-                        juce::MidiBuffer tempBuffer;
-                        tempBuffer.addEvent(noteOff, 0);
-                        noteIsOn = false;
-                    }
+                    juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
+                    juce::MidiBuffer tempBuffer;
+                    tempBuffer.addEvent(noteOff, 0);
+                    noteIsOn = false;
                 }
-                else if (!hostIsPlaying && isPlaying)
+            }
+            else if (!hostIsPlaying && isPlaying)
+            {
+                // Debug info
+                DEBUG_LOG("Host stopped playing - stopping sequencer");
+
+                // Stop the sequencer
+                isPlaying = false;
+
+                // Make sure no notes are left on
+                if (noteIsOn)
                 {
-                    // Debug info
-                    DEBUG_LOG("Host stopped playing - stopping sequencer");
-
-                    // Stop the sequencer
-                    isPlaying = false;
-
-                    // Make sure no notes are left on
-                    if (noteIsOn)
-                    {
-                        juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
-                        juce::MidiBuffer tempBuffer;
-                        tempBuffer.addEvent(noteOff, 0);
-                        noteIsOn = false;
-                    }
-                }
-
-                // Add a debug message to show transport state
-                if (hostIsPlaying) {
-                    DEBUG_LOG("Host is playing, isPlaying = " << isPlaying);
+                    juce::MidiMessage noteOff = juce::MidiMessage::noteOff(1, lastNoteValue, (juce::uint8) 0);
+                    juce::MidiBuffer tempBuffer;
+                    tempBuffer.addEvent(noteOff, 0);
+                    noteIsOn = false;
                 }
             }
         }
-        else {
-            // No position info available - this could indicate a problem
-            DEBUG_LOG("No position info available from host");
-        }
     }
-    else {
-        // No playhead available - this could indicate a problem
-        DEBUG_LOG("No playhead available from host");
+    else if (!syncToHostTransport)
+    {
+        // When not synced to host, use internal BPM
+        bpm = internalBpm;
     }
 
     // Check for BPM changes and reset sample counter if needed
@@ -854,4 +844,17 @@ int RandomWalkSequencer::getNoteForStep(int step)
 double RandomWalkSequencer::getNoteLength()
 {
     return stepDuration * gateValue;
+}
+
+void RandomWalkSequencer::setInternalBpm(double newBpm)
+{
+    // Limit BPM to a reasonable range
+    internalBpm = juce::jlimit(30.0, 300.0, newBpm);
+
+    // Only update timing if we're not synced to host
+    if (!syncToHostTransport)
+    {
+        bpm = internalBpm;
+        updateTimingInfo();
+    }
 }

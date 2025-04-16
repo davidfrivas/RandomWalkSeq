@@ -93,8 +93,11 @@ public:
     juce::AudioProcessor::ProcessingPrecision getProcessingPrecision() const;
     void processBlockBypassed(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages) override;
     bool getSyncToHostTransport() const { return syncToHostTransport; }
+    double getInternalBpm() const { return internalBpm; }
+    void setInternalBpm(double newBpm);
 
 private:
+    double internalBpm = 120.0; // Default internal BPM
     // Manual parameter values
     int rateValue;
     int densityValue;

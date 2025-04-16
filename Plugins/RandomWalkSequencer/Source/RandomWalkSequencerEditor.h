@@ -78,5 +78,8 @@ private:
     juce::Label gateLabel;
     juce::Label rootLabel;
 
+    juce::Slider bpmSlider;
+    juce::Label bpmLabel;
+
     JUCE_DECLARE_NON_COPYABLE_WITH_LEAK_DETECTOR(RandomWalkSequencerEditor)
 };

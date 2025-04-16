@@ -99,8 +99,14 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
         // Only allow manual control when not synced to host
         if (!randomWalkProcessor.getSyncToHostTransport())
         {
+            // We're not synced, so use the play button to control playback
             bool isPlaying = playButton.getToggleState();
+
+            // Update the processor's playing state
             randomWalkProcessor.setPlaying(isPlaying);
+
+            // Update the button text immediately for better responsiveness
+            playButton.setButtonText(isPlaying ? "Stop" : "Play");
         }
         else
         {
@@ -135,9 +141,27 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     syncButton.setButtonText("Sync to Host Transport");
     syncButton.setToggleState(true, juce::dontSendNotification);
     syncButton.onClick = [this] {
-        randomWalkProcessor.setSyncToHostTransport(syncButton.getToggleState());
+        bool syncState = syncButton.getToggleState();
+        randomWalkProcessor.setSyncToHostTransport(syncState);
+        bpmSlider.setEnabled(!syncState);
+        bpmLabel.setAlpha(syncState ? 0.5f : 1.0f);
     };
     addAndMakeVisible(syncButton);
+
+    // BPM slider
+    bpmLabel.setText("BPM", juce::dontSendNotification);
+    bpmLabel.setJustificationType(juce::Justification::centred);
+    addAndMakeVisible(bpmLabel);
+
+    bpmSlider.setSliderStyle(juce::Slider::SliderStyle::LinearVertical);
+    bpmSlider.setRange(30.0, 300.0, 1.0);
+    bpmSlider.setValue(randomWalkProcessor.getInternalBpm());
+    bpmSlider.setTextBoxStyle(juce::Slider::TextBoxBelow, false, 50, 20);
+    bpmSlider.onValueChange = [this] {
+        randomWalkProcessor.setInternalBpm(bpmSlider.getValue());
+    };
+    bpmSlider.setEnabled(!randomWalkProcessor.getSyncToHostTransport());
+    addAndMakeVisible(bpmSlider);
 
     // Manual Step toggle
     manualStepLabel.setText("Manual Step", juce::dontSendNotification);
@@ -224,6 +248,11 @@ void RandomWalkSequencerEditor::resized()
     syncButton.setBounds(area.removeFromTop(30));
 
     area.removeFromTop(10); // Add spacing
+
+    // BPM slider - position it to the left side with vertical orientation
+    auto bpmArea = area.removeFromLeft(80);
+    bpmLabel.setBounds(bpmArea.removeFromTop(20));
+    bpmSlider.setBounds(bpmArea.withHeight(100));
 
     // Controls section - create rows for the parameters with consistent heights
     auto controlHeight = 40;
