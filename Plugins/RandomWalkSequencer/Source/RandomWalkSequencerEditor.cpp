@@ -568,10 +568,10 @@ void RandomWalkSequencerEditor::StepDisplay::paint(juce::Graphics& g)
 
             // Draw step number for clarity
             g.setFont(10.0f);
-            g.drawText(juce::String(i),
-                     stepRect.reduced(2),
-                     juce::Justification::bottomRight,
-                     true);
+            g.drawText(juce::String(i + 1), // Add 1 to the index
+                       stepRect.reduced(2),
+                       juce::Justification::bottomRight,
+                       true);
 
             // In manual mode, add a visual indicator for disabled steps (X pattern)
             if (isManualMode && !isActive) {
