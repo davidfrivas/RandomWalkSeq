@@ -46,6 +46,8 @@ private:
     juce::TextButton transposeDownButton;
     juce::Label transposeLabel;
 
+    juce::TextButton monoButton;
+
     // Step display
     class StepDisplay : public juce::Component
     {

@@ -797,7 +797,7 @@ void RandomWalkSequencer::generateRandomWalk()
     // Add a final pass to ensure melodic interest
     enhanceSequenceMelodically();
 
-    DEBUG_LOG("Enhanced random walk sequence generated with high variability");
+    DEBUG_LOG("Random walk sequence generated");
 }
 
 // Add this helper method to further enhance the sequence
@@ -888,4 +888,19 @@ void RandomWalkSequencer::transposeOctaveDown()
         // Optionally add feedback when limit is reached
         DEBUG_LOG("Cannot transpose lower than C0");
     }
+}
+
+void RandomWalkSequencer::setMonoMode()
+{
+    // Set all sequence steps to 0 (root note)
+    for (int i = 0; i < numSteps; ++i)
+    {
+        sequence[i] = 0; // 0 means no offset, so it will play the root note
+    }
+
+    // If we have an editor, update the display
+    if (auto* editor = dynamic_cast<RandomWalkSequencerEditor*>(getActiveEditor()))
+        editor->repaint();
+
+    DEBUG_LOG("Set all steps to mono (root note)");
 }

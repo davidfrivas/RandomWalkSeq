@@ -97,6 +97,7 @@ public:
     void setInternalBpm(double newBpm);
     void transposeOctaveUp();
     void transposeOctaveDown();
+    void setMonoMode();
 
 private:
     double internalBpm = 120.0; // Default internal BPM

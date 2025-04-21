@@ -109,6 +109,13 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     randomizeButton.onClick = [this] { randomWalkProcessor.randomizeSequence(patternTypeComboBox.getSelectedItemIndex()); }; // Using renamed processor
     addAndMakeVisible(randomizeButton);
 
+    // Mono button
+    monoButton.setButtonText("Mono");
+    monoButton.onClick = [this] {
+        randomWalkProcessor.setMonoMode();
+    };
+    addAndMakeVisible(monoButton);
+
     // Play button
     playButton.setButtonText("Play");
     playButton.setClickingTogglesState(true);
@@ -255,7 +262,9 @@ void RandomWalkSequencerEditor::resized()
 
     // Add buttons to the right
     auto buttonArea = headerArea.removeFromRight(240);
-    randomizeButton.setBounds(buttonArea.removeFromLeft(120));
+    auto buttonWidth = buttonArea.getWidth() / 3; // Divide space into thirds
+    randomizeButton.setBounds(buttonArea.removeFromLeft(buttonWidth));
+    monoButton.setBounds(buttonArea.removeFromLeft(buttonWidth));
     playButton.setBounds(buttonArea);
 
     // Step display
