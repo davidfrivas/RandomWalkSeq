@@ -243,13 +243,13 @@ void RandomWalkSequencerEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
 
-    // Calculate the total height needed
-    int totalHeight = 40 + 150 + 30 + 10 + (40 + 10) * 6; // Header + Display + Sync + Spacing + 6 controls with spacing
+    // Calculate the total height needed for all controls
+    int totalHeight = 40 + 150 + 30 + 10 + (40 + 10) * 7; // Added +1 to account for manual step toggle
 
-    // Set a minimum size for the editor to ensure all controls are visible
+    // Set a minimum size for the editor
     setSize(juce::jmax(600, getWidth()), juce::jmax(totalHeight, getHeight()));
 
-    // Now continue with layout
+    // Reset area after possibly resizing
     area = getLocalBounds().reduced(10);
 
     // Header section
@@ -262,7 +262,7 @@ void RandomWalkSequencerEditor::resized()
 
     // Add buttons to the right
     auto buttonArea = headerArea.removeFromRight(240);
-    auto buttonWidth = buttonArea.getWidth() / 3; // Divide space into thirds
+    auto buttonWidth = buttonArea.getWidth() / 3;
     randomizeButton.setBounds(buttonArea.removeFromLeft(buttonWidth));
     monoButton.setBounds(buttonArea.removeFromLeft(buttonWidth));
     playButton.setBounds(buttonArea);
@@ -271,7 +271,14 @@ void RandomWalkSequencerEditor::resized()
     auto displayArea = area.removeFromTop(150);
     stepDisplay.setBounds(displayArea);
 
-    // Transport sync toggle below the step display
+    // Place manual step toggle right below the step display for visibility
+    auto manualStepArea = area.removeFromTop(30);
+    manualStepLabel.setBounds(manualStepArea.removeFromLeft(80));
+    manualStepToggle.setBounds(manualStepArea.removeFromLeft(30));
+
+    area.removeFromTop(10); // Add spacing
+
+    // Transport sync toggle
     syncButton.setBounds(area.removeFromTop(30));
 
     area.removeFromTop(10); // Add spacing
@@ -335,11 +342,6 @@ void RandomWalkSequencerEditor::resized()
     transposeDownButton.setBounds(transposeArea.removeFromLeft(transposeBtnWidth));
     transposeArea.removeFromLeft(5); // Small gap between buttons
     transposeUpButton.setBounds(transposeArea.removeFromLeft(transposeBtnWidth));
-
-    // Manual Step toggle
-    auto manualStepArea = area.removeFromTop(controlHeight);
-    manualStepLabel.setBounds(manualStepArea.removeFromLeft(80));
-    manualStepToggle.setBounds(manualStepArea.removeFromLeft(30));
 
     // Debug print to see if we have enough space
     DEBUG_LOG("Remaining area height: " << area.getHeight());
