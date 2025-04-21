@@ -8,7 +8,7 @@
 // Modified constructor with manual step toggle
 RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     : AudioProcessorEditor(&p)
-    , randomWalkProcessor(p) // Renamed from 'processor' to avoid shadowing
+    , randomWalkProcessor(p)
     , stepDisplay(p, *this)
 {
     DEBUG_LOG("Editor constructor start");
@@ -153,9 +153,10 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     patternTypeLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(patternTypeLabel);
 
+    // Pattern type selector - make sure it doesn't auto-regenerate
     patternTypeComboBox.addItemList(juce::StringArray(
         "Random Walk", "Ascending", "Descending", "Arpeggio"), 1);
-    patternTypeComboBox.setSelectedItemIndex(0);
+    patternTypeComboBox.setSelectedItemIndex(0, juce::dontSendNotification); // Use dontSendNotification!
     patternTypeComboBox.onChange = [this] {
         // Generate a new sequence with the selected pattern type
         randomWalkProcessor.randomizeSequence(patternTypeComboBox.getSelectedItemIndex());

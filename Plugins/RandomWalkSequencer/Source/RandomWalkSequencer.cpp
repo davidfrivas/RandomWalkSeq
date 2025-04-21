@@ -445,6 +445,7 @@ void RandomWalkSequencer::setStateInformation(const void* data, int sizeInBytes)
 
 juce::AudioProcessorEditor* RandomWalkSequencer::createEditor()
 {
+    // Create the editor without triggering any sequence regeneration
     return new RandomWalkSequencerEditor(*this);
 }
 
