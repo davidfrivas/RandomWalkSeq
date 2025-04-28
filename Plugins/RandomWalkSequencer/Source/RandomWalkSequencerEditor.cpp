@@ -5,7 +5,10 @@
 #include "RandomWalkSequencer.h"
 #include "RandomWalkSequencerEditor.h"
 
-// Modified constructor with manual step toggle
+/**
+ * Constructor - initializes all UI components and connects them to the processor
+ * @param p Reference to the RandomWalkSequencer processor
+ */
 RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     : AudioProcessorEditor(&p)
     , randomWalkProcessor(p)
@@ -13,19 +16,19 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
 {
     DEBUG_LOG("Editor constructor start");
 
-    // Rate label
+    // Rate label and combo box setup
     rateLabel.setText("Rate", juce::dontSendNotification);
     rateLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(rateLabel);
 
-    // Rate combo box setup
+    // Rate combo box setup - musical note values
     rateComboBox.addItemList(juce::StringArray("1/32", "1/16", "1/8", "1/4", "1/3", "1/2", "1", "2", "3", "4"), 1);
     rateComboBox.setSelectedItemIndex(randomWalkProcessor.getRate()); // Using renamed processor
     rateComboBox.setJustificationType(juce::Justification::centred);
     rateComboBox.onChange = [this] { randomWalkProcessor.setRate(rateComboBox.getSelectedItemIndex()); }; // Using renamed processor
     addAndMakeVisible(rateComboBox);
 
-    // Density slider
+    // Density slider - controls number of active steps
     densityLabel.setText("Density", juce::dontSendNotification);
     densityLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(densityLabel);
@@ -37,7 +40,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     densitySlider.onValueChange = [this] { randomWalkProcessor.setDensity(static_cast<int>(densitySlider.getValue())); }; // Using renamed processor
     addAndMakeVisible(densitySlider);
 
-    // Offset slider
+    // Offset slider - controls sequence start position
     offsetLabel.setText("Offset", juce::dontSendNotification);
     offsetLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(offsetLabel);
@@ -49,7 +52,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     offsetSlider.onValueChange = [this] { randomWalkProcessor.setOffset(static_cast<int>(offsetSlider.getValue())); }; // Using renamed processor
     addAndMakeVisible(offsetSlider);
 
-    // Gate slider
+    // Gate slider - controls note duration
     gateLabel.setText("Gate", juce::dontSendNotification);
     gateLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(gateLabel);
@@ -61,7 +64,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     gateSlider.onValueChange = [this] { randomWalkProcessor.setGate(static_cast<float>(gateSlider.getValue())); }; // Using renamed processor
     addAndMakeVisible(gateSlider);
 
-    // Root slider
+    // Root slider - controls base MIDI note
     rootLabel.setText("Root", juce::dontSendNotification);
     rootLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(rootLabel);
@@ -86,7 +89,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     transposeLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(transposeLabel);
 
-    // Down button with caret symbol
+    // Down button - transposes down one octave
     transposeDownButton.setButtonText("v");
     transposeDownButton.onClick = [this] {
         randomWalkProcessor.transposeOctaveDown();
@@ -95,7 +98,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     };
     addAndMakeVisible(transposeDownButton);
 
-    // Up button with caret symbol
+    // Up button - transposes up one octave
     transposeUpButton.setButtonText("^");
     transposeUpButton.onClick = [this] {
         randomWalkProcessor.transposeOctaveUp();
@@ -104,19 +107,19 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     };
     addAndMakeVisible(transposeUpButton);
 
-    // Randomize button
+    // Randomize button - generates new pattern
     randomizeButton.setButtonText("Randomize");
     randomizeButton.onClick = [this] { randomWalkProcessor.randomizeSequence(patternTypeComboBox.getSelectedItemIndex()); }; // Using renamed processor
     addAndMakeVisible(randomizeButton);
 
-    // Mono button
+    // Mono button - sets all steps to play root note
     monoButton.setButtonText("Mono");
     monoButton.onClick = [this] {
         randomWalkProcessor.setMonoMode();
     };
     addAndMakeVisible(monoButton);
 
-    // Play button
+    // Play button - controls playback when not synced to host
     playButton.setButtonText("Play");
     playButton.setClickingTogglesState(true);
     playButton.setColour(juce::TextButton::buttonOnColourId, juce::Colours::green);
@@ -153,7 +156,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     patternTypeLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(patternTypeLabel);
 
-    // Pattern type selector - make sure it doesn't auto-regenerate
+    // Pattern type selector - different sequence patterns
     patternTypeComboBox.addItemList(juce::StringArray(
         "Random Walk", "Ascending", "Descending", "Arpeggio"), 1);
     patternTypeComboBox.setSelectedItemIndex(0, juce::dontSendNotification); // Use dontSendNotification!
@@ -163,7 +166,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     };
     addAndMakeVisible(patternTypeComboBox);
 
-    // Transport sync toggle
+    // Transport sync toggle - syncs to host transport
     syncButton.setButtonText("Sync to Host Transport");
     syncButton.setToggleState(false, juce::dontSendNotification);
     syncButton.onClick = [this] {
@@ -174,7 +177,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     };
     addAndMakeVisible(syncButton);
 
-    // BPM slider
+    // BPM slider - controls internal tempo when not synced
     bpmLabel.setText("BPM", juce::dontSendNotification);
     bpmLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(bpmLabel);
@@ -189,7 +192,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     bpmSlider.setEnabled(true);
     addAndMakeVisible(bpmSlider);
 
-    // Manual Step toggle
+    // Manual Step toggle - enables step on/off control
     manualStepLabel.setText("Manual Step", juce::dontSendNotification);
     manualStepLabel.setJustificationType(juce::Justification::centred);
     addAndMakeVisible(manualStepLabel);
@@ -205,7 +208,7 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     // Initial state update for density slider
     updateDensitySliderState();
 
-    // Step display
+    // Step display - visual representation of sequence
     addAndMakeVisible(stepDisplay);
     stepDisplay.setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
 
@@ -218,7 +221,10 @@ RandomWalkSequencerEditor::RandomWalkSequencerEditor(RandomWalkSequencer& p)
     DEBUG_LOG("Editor constructor end");
 }
 
-// Add method to update density slider enabled state
+/**
+ * Updates the density slider enabled state based on manual step mode
+ * Disables density control when in manual step mode
+ */
 void RandomWalkSequencerEditor::updateDensitySliderState()
 {
     bool isManualMode = randomWalkProcessor.isManualStepMode();
@@ -226,11 +232,17 @@ void RandomWalkSequencerEditor::updateDensitySliderState()
     densityLabel.setAlpha(isManualMode ? 0.5f : 1.0f);
 }
 
+/**
+ * Destructor - stops timer and cleans up resources
+ */
 RandomWalkSequencerEditor::~RandomWalkSequencerEditor()
 {
     stopTimer();
 }
 
+/**
+ * Paints the editor background and header text
+ */
 void RandomWalkSequencerEditor::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colours::darkgrey);
@@ -240,6 +252,10 @@ void RandomWalkSequencerEditor::paint(juce::Graphics& g)
     g.drawText("Random Walk Sequencer", getLocalBounds(), juce::Justification::centredTop, true);
 }
 
+/**
+ * Positions all UI components within the editor
+ * Called when the component is resized or created
+ */
 void RandomWalkSequencerEditor::resized()
 {
     auto area = getLocalBounds().reduced(10);
@@ -348,6 +364,10 @@ void RandomWalkSequencerEditor::resized()
     DEBUG_LOG("Remaining area height: " << area.getHeight());
 }
 
+/**
+ * Timer callback to update UI state from the processor
+ * Refreshes controls and display at regular intervals
+ */
 void RandomWalkSequencerEditor::timerCallback()
 {
     // Update controls from processor values, if needed
@@ -385,6 +405,10 @@ void RandomWalkSequencerEditor::timerCallback()
     stepDisplay.repaint();
 }
 
+/**
+ * Updates the manual step toggle button state
+ * @param state New state for the toggle button
+ */
 void RandomWalkSequencerEditor::updateManualStepToggle(bool state)
 {
     manualStepToggle.setToggleState(state, juce::sendNotification);
@@ -392,6 +416,11 @@ void RandomWalkSequencerEditor::updateManualStepToggle(bool state)
     // which will update the processor and the density slider state
 }
 
+/**
+ * Constructor for the step display component
+ * @param proc Reference to the RandomWalkSequencer processor
+ * @param ed Reference to the editor component
+ */
 RandomWalkSequencerEditor::StepDisplay::StepDisplay(RandomWalkSequencer& proc, RandomWalkSequencerEditor& ed)
     : processor(proc), editor(ed)
 {
@@ -402,6 +431,11 @@ RandomWalkSequencerEditor::StepDisplay::StepDisplay(RandomWalkSequencer& proc, R
     setMouseCursor(juce::MouseCursor::UpDownResizeCursor);
 }
 
+/**
+ * Determines which step was clicked based on mouse position
+ * @param e Mouse event containing position information
+ * @return Step index (0-15)
+ */
 int RandomWalkSequencerEditor::StepDisplay::getStepNumberFromMousePosition(const juce::MouseEvent& e)
 {
     const int numSteps = 16;
@@ -414,6 +448,11 @@ int RandomWalkSequencerEditor::StepDisplay::getStepNumberFromMousePosition(const
     return juce::jlimit(0, numSteps - 1, stepNumber);
 }
 
+/**
+ * Converts vertical position to note value
+ * @param y Vertical position in pixels
+ * @return Note value offset (-12 to +12)
+ */
 int RandomWalkSequencerEditor::StepDisplay::yPositionToNoteValue(float y)
 {
     float h = (float)getHeight();
@@ -428,12 +467,20 @@ int RandomWalkSequencerEditor::StepDisplay::yPositionToNoteValue(float y)
     return juce::jlimit(-12, 12, noteValue);
 }
 
+/**
+ * Handles mouse button press on a step
+ * Starts step value editing
+ */
 void RandomWalkSequencerEditor::StepDisplay::mouseDown(const juce::MouseEvent& e)
 {
     // Identify which step was clicked
     draggedStep = getStepNumberFromMousePosition(e);
 }
 
+/**
+ * Handles mouse drag to adjust step values
+ * Updates the step value based on vertical position
+ */
 void RandomWalkSequencerEditor::StepDisplay::mouseDrag(const juce::MouseEvent& e)
 {
     if (draggedStep >= 0)
@@ -449,12 +496,20 @@ void RandomWalkSequencerEditor::StepDisplay::mouseDrag(const juce::MouseEvent& e
     }
 }
 
+/**
+ * Handles mouse button release
+ * Finalizes step value editing
+ */
 void RandomWalkSequencerEditor::StepDisplay::mouseUp(const juce::MouseEvent& /*e*/)
 {
     // Reset dragged step
     draggedStep = -1;
 }
 
+/**
+ * Handles double-click to toggle step enabled/disabled
+ * Activates manual step mode if not already active
+ */
 void RandomWalkSequencerEditor::StepDisplay::mouseDoubleClick(const juce::MouseEvent& e)
 {
     // Identify which step was double-clicked
@@ -476,7 +531,10 @@ void RandomWalkSequencerEditor::StepDisplay::mouseDoubleClick(const juce::MouseE
     repaint();
 }
 
-// Implement StepDisplay
+/**
+ * Draws the step sequence visualization
+ * Shows current step, note values, and enabled/disabled states
+ */
 void RandomWalkSequencerEditor::StepDisplay::paint(juce::Graphics& g)
 {
     g.fillAll(juce::Colours::darkgrey);
@@ -603,6 +661,10 @@ void RandomWalkSequencerEditor::StepDisplay::paint(juce::Graphics& g)
     }
 }
 
+/**
+ * Updates the root note display text to show note name
+ * Converts MIDI note number to note name with octave
+ */
 void RandomWalkSequencerEditor::updateRootNoteDisplay()
 {
     int value = randomWalkProcessor.getRoot();

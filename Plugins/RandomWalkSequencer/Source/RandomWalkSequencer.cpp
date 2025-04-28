@@ -5,7 +5,10 @@
 #include "RandomWalkSequencer.h"
 #include "RandomWalkSequencerEditor.h"
 
-// Minimal constructor with no AudioProcessorValueTreeState at all
+/**
+ * Constructor - initializes the sequencer with default parameters
+ * Sets up stereo MIDI buses and initializes the sequence pattern
+ */
 RandomWalkSequencer::RandomWalkSequencer()
     : AudioProcessor(BusesProperties()
                      .withInput("MIDI In", juce::AudioChannelSet::stereo())
@@ -38,12 +41,19 @@ RandomWalkSequencer::RandomWalkSequencer()
     DEBUG_LOG("Processor created with random walk pattern");
 }
 
+/**
+ * Destructor - cleans up resources
+ */
 RandomWalkSequencer::~RandomWalkSequencer()
 {
 
 }
 
-// Implementation of new methods for manual step control
+/**
+ * Checks if a step is enabled in manual step mode
+ * @param step The step index to check
+ * @return True if step is enabled, false otherwise
+ */
 bool RandomWalkSequencer::isStepEnabled(int step) const
 {
     if (step >= 0 && step < numSteps)
@@ -53,6 +63,10 @@ bool RandomWalkSequencer::isStepEnabled(int step) const
     return false;
 }
 
+/**
+ * Toggles a step's enabled state in manual step mode
+ * @param step The step index to toggle
+ */
 void RandomWalkSequencer::toggleStepEnabled(int step)
 {
     if (step >= 0 && step < numSteps)
@@ -61,6 +75,10 @@ void RandomWalkSequencer::toggleStepEnabled(int step)
     }
 }
 
+/**
+ * Sets whether manual step mode is active
+ * In manual mode, individual steps can be enabled/disabled
+ */
 void RandomWalkSequencer::setManualStepMode(bool isManual)
 {
     manualStepMode = isManual;
@@ -72,6 +90,10 @@ void RandomWalkSequencer::setManualStepMode(bool isManual)
     }
 }
 
+/**
+ * Resets all steps to enabled state
+ * Called when exiting manual step mode
+ */
 void RandomWalkSequencer::resetEnabledSteps()
 {
     // Reset all steps to enabled
@@ -81,6 +103,10 @@ void RandomWalkSequencer::resetEnabledSteps()
     }
 }
 
+/**
+ * Prepares the sequencer for playback
+ * Initializes timing parameters based on sample rate
+ */
 void RandomWalkSequencer::prepareToPlay(double sampleRateToUse, int /*samplesPerBlock*/)
 {
     this->sampleRate = sampleRateToUse;
@@ -96,6 +122,10 @@ void RandomWalkSequencer::prepareToPlay(double sampleRateToUse, int /*samplesPer
     DEBUG_LOG("prepareToPlay called, sampleRate = " << sampleRateToUse);
 }
 
+/**
+ * Releases resources when the sequencer is no longer needed
+ * Ensures no hanging MIDI notes remain
+ */
 void RandomWalkSequencer::releaseResources()
 {
     // Turn off sequencer when the plugin is deactivated
@@ -111,21 +141,37 @@ void RandomWalkSequencer::releaseResources()
     }
 }
 
+/**
+ * Indicates if double precision processing is supported
+ * This sequencer only uses single precision
+ */
 bool RandomWalkSequencer::supportsDoublePrecisionProcessing() const
 {
     return false;
 }
 
+/**
+ * Gets the current processing precision
+ * Always returns single precision for this sequencer
+ */
 juce::AudioProcessor::ProcessingPrecision RandomWalkSequencer::getProcessingPrecision() const
 {
     return juce::AudioProcessor::singlePrecision;
 }
 
+/**
+ * Processes a block when the processor is bypassed
+ * Simply clears the audio buffer since this is a MIDI effect
+ */
 void RandomWalkSequencer::processBlockBypassed(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& /*midiMessages*/)
 {
     buffer.clear();
 }
 
+/**
+ * Main processing method - generates MIDI notes based on the current sequence
+ * Handles timing, note generation, and step advancement
+ */
 void RandomWalkSequencer::processBlock(juce::AudioBuffer<float>& buffer, juce::MidiBuffer& midiMessages)
 {
     // Update timing info at the start of each block to keep in sync with host transport
@@ -275,6 +321,10 @@ void RandomWalkSequencer::processBlock(juce::AudioBuffer<float>& buffer, juce::M
     midiMessages.swapWith(processedMidi);
 }
 
+/**
+ * Checks if the provided bus layout is compatible with this sequencer
+ * Supports various bus configurations for maximum compatibility
+ */
 bool RandomWalkSequencer::isBusesLayoutSupported(const BusesLayout& layouts) const
 {
     // For REAPER compatibility, we'll be more permissive with bus layouts
@@ -302,9 +352,14 @@ bool RandomWalkSequencer::isBusesLayoutSupported(const BusesLayout& layouts) con
     return false;
 }
 
-// Add more pattern generation algorithms for different musical feels
+//==============================================================================
+// Pattern Generation Methods
+//==============================================================================
 
-// Generate an ascending pattern
+/**
+ * Generates an ascending pattern
+ * Creates a mostly upward moving melody with occasional downward steps
+ */
 void RandomWalkSequencer::generateAscendingPattern()
 {
     juce::Random random;
@@ -330,7 +385,10 @@ void RandomWalkSequencer::generateAscendingPattern()
     }
 }
 
-// Generate a descending pattern
+/**
+ * Generates a descending pattern
+ * Creates a mostly downward moving melody with occasional upward steps
+ */
 void RandomWalkSequencer::generateDescendingPattern()
 {
     juce::Random random;
@@ -356,7 +414,10 @@ void RandomWalkSequencer::generateDescendingPattern()
     }
 }
 
-// Generate a pattern with musical intervals (e.g., arpeggios)
+/**
+ * Generates an arpeggio pattern
+ * Creates a sequence based on chord tones (major chord by default)
+ */
 void RandomWalkSequencer::generateArpeggioPattern()
 {
     // Define some musical intervals (semitones)
@@ -379,6 +440,10 @@ void RandomWalkSequencer::generateArpeggioPattern()
     }
 }
 
+/**
+ * Saves the current state of the sequencer to the provided memory block
+ * Stores all parameters and sequence data as XML
+ */
 void RandomWalkSequencer::getStateInformation(juce::MemoryBlock& destData)
 {
     // Create XML to store parameter values
@@ -405,6 +470,10 @@ void RandomWalkSequencer::getStateInformation(juce::MemoryBlock& destData)
     DEBUG_LOG("State saved");
 }
 
+/**
+ * Restores the sequencer state from the provided data
+ * Loads all parameters and sequence data from XML
+ */
 void RandomWalkSequencer::setStateInformation(const void* data, int sizeInBytes)
 {
     // Parse XML from binary
@@ -443,30 +512,72 @@ void RandomWalkSequencer::setStateInformation(const void* data, int sizeInBytes)
     }
 }
 
+/**
+ * Creates the editor component for the sequencer UI
+ * @return A new editor instance
+ */
 juce::AudioProcessorEditor* RandomWalkSequencer::createEditor()
 {
     // Create the editor without triggering any sequence regeneration
     return new RandomWalkSequencerEditor(*this);
 }
 
+/**
+ * Indicates whether this sequencer has a custom editor
+ * @return Always returns true
+ */
 bool RandomWalkSequencer::hasEditor() const
 {
     return true;
 }
 
+/**
+ * Called when a parameter value changes (unused in this implementation)
+ */
 void RandomWalkSequencer::parameterChanged(const juce::String&, float)
 {
     // Not used without AudioProcessorValueTreeState
 }
 
-// Custom parameter getters/setters
+//==============================================================================
+// Parameter access methods
+//==============================================================================
+
+/**
+ * Gets the rate parameter value (step timing)
+ */
 int RandomWalkSequencer::getRate() const { return rateValue; }
+
+/**
+ * Gets the density parameter value (number of active steps)
+ */
 int RandomWalkSequencer::getDensity() const { return densityValue; }
+
+/**
+ * Gets the offset parameter value (sequence start position)
+ */
 int RandomWalkSequencer::getOffset() const { return offsetValue; }
+
+/**
+ * Gets the gate parameter value (note duration)
+ */
 float RandomWalkSequencer::getGate() const { return gateValue; }
+
+/**
+ * Gets the root note parameter value (base MIDI note)
+ */
 int RandomWalkSequencer::getRoot() const { return rootValue; }
 
+/**
+ * Sets the rate parameter (step timing)
+ * Updates timing information when changed
+ */
 void RandomWalkSequencer::setRate(int value) { rateValue = value; updateTimingInfo(); }
+
+/**
+ * Sets the density parameter (number of active steps)
+ * Resets current step if it's now outside the loop range
+ */
 void RandomWalkSequencer::setDensity(int value)
 {
     // Only update if value changed
@@ -479,11 +590,30 @@ void RandomWalkSequencer::setDensity(int value)
         }
     }
 }
+
+/**
+ * Sets the offset parameter (sequence start position)
+ */
 void RandomWalkSequencer::setOffset(int value) { offsetValue = value; }
+
+/**
+ * Sets the gate parameter (note duration)
+ */
 void RandomWalkSequencer::setGate(float value) { gateValue = value; }
+
+/**
+ * Sets the root note parameter (base MIDI note)
+ */
 void RandomWalkSequencer::setRoot(int value) { rootValue = value; }
 
-// Core functionality
+//==============================================================================
+// Core Sequencer Functionality
+//==============================================================================
+
+/**
+ * Randomizes the sequence based on the selected pattern type
+ * @param patternType 0=RandomWalk, 1=Ascending, 2=Descending, 3=Arpeggio
+ */
 void RandomWalkSequencer::randomizeSequence(int patternType)
 {
     // Save the current enabled states if in manual mode
@@ -532,7 +662,10 @@ void RandomWalkSequencer::randomizeSequence(int patternType)
         editor->repaint();
 }
 
-// Add a method to start/stop the sequencer
+/**
+ * Starts or stops the sequencer playback
+ * Handles note cleanup when starting/stopping
+ */
 void RandomWalkSequencer::setPlaying(bool shouldPlay)
 {
     // Only update if the state is actually changing
@@ -566,6 +699,11 @@ void RandomWalkSequencer::setPlaying(bool shouldPlay)
     }
 }
 
+/**
+ * Sets a specific value for a step in the sequence
+ * @param step The step index to modify
+ * @param value The new note value (-12 to +12 semitones from root)
+ */
 void RandomWalkSequencer::setSequenceValue(int step, int value)
 {
     // Ensure step is in valid range
@@ -579,19 +717,27 @@ void RandomWalkSequencer::setSequenceValue(int step, int value)
     }
 }
 
-// Add accessor for isPlaying state
+/**
+ * Returns whether the sequencer is currently playing
+ * @return Current playback state
+ */
 bool RandomWalkSequencer::getIsPlaying() const
 {
     return isPlaying;
 }
 
-// Implement the missing JUCE processor callbacks
+/**
+ * Returns the name of the sequencer
+ */
 const juce::String RandomWalkSequencer::getName() const
 {
     return "RandomWalkSequencer";
 }
 
-// Update the timing information when BPM or time signature changes
+/**
+ * Updates timing information based on BPM and rate settings
+ * Handles host transport sync if enabled
+ */
 void RandomWalkSequencer::updateTimingInfo()
 {
     auto* playHead = getPlayHead();
@@ -678,6 +824,10 @@ void RandomWalkSequencer::updateTimingInfo()
     }
 }
 
+/**
+ * Converts rate parameter to actual timing value in beats
+ * @return Duration of one step in beats (e.g. 0.25 = quarter note)
+ */
 float RandomWalkSequencer::getRateInSeconds() const
 {
     // Convert rate parameter to actual timing value
@@ -685,6 +835,10 @@ float RandomWalkSequencer::getRateInSeconds() const
     return rateValues[rateValue];
 }
 
+/**
+ * Generates a random walk pattern sequence
+ * Creates musically interesting variations in pitch
+ */
 void RandomWalkSequencer::generateRandomWalk()
 {
     juce::Random random;
@@ -801,7 +955,10 @@ void RandomWalkSequencer::generateRandomWalk()
     DEBUG_LOG("Random walk sequence generated");
 }
 
-// Add this helper method to further enhance the sequence
+/**
+ * Helper method to enhance the musical quality of the sequence
+ * Breaks up repetitive patterns and adds accents/octave jumps
+ */
 void RandomWalkSequencer::enhanceSequenceMelodically()
 {
     juce::Random random;
@@ -837,17 +994,30 @@ void RandomWalkSequencer::enhanceSequenceMelodically()
     }
 }
 
+/**
+ * Calculates the MIDI note value for a specific step
+ * @param step The step index
+ * @return MIDI note value (root + offset)
+ */
 int RandomWalkSequencer::getNoteForStep(int step)
 {
     // step is already offset-adjusted, so use it directly to access the sequence array
     return rootValue + sequence[step];
 }
 
+/**
+ * Calculates the duration of a note based on gate time
+ * @return Note duration in samples
+ */
 double RandomWalkSequencer::getNoteLength()
 {
     return stepDuration * gateValue;
 }
 
+/**
+ * Sets the internal BPM (used when not synced to host)
+ * @param newBpm The new BPM value
+ */
 void RandomWalkSequencer::setInternalBpm(double newBpm)
 {
     // Limit BPM to a reasonable range
@@ -861,6 +1031,10 @@ void RandomWalkSequencer::setInternalBpm(double newBpm)
     }
 }
 
+/**
+ * Transposes the root note up by one octave
+ * Limited to maximum of C9 (MIDI 120)
+ */
 void RandomWalkSequencer::transposeOctaveUp()
 {
     // Don't transpose above C9 (MIDI note 120)
@@ -876,6 +1050,10 @@ void RandomWalkSequencer::transposeOctaveUp()
     }
 }
 
+/**
+ * Transposes the root note down by one octave
+ * Limited to minimum of C0 (MIDI 12)
+ */
 void RandomWalkSequencer::transposeOctaveDown()
 {
     // Don't transpose below C0 (MIDI note 12)
@@ -891,6 +1069,10 @@ void RandomWalkSequencer::transposeOctaveDown()
     }
 }
 
+/**
+ * Sets all sequence steps to play the root note
+ * Creates a mono/unison sequence pattern
+ */
 void RandomWalkSequencer::setMonoMode()
 {
     // Set all sequence steps to 0 (root note)
