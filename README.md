@@ -1,40 +1,95 @@
-# JUCE CMake Repo Prototype
-A prototype to model a way to create an entire repo using JUCE 8 and CMake.
+# RandomWalkSequencer Build Instructions
 
-This is inspired by a desire to keep the environment setting of my projects to minimum,
-making sure the environment is identical for every developer/machine.
+This document explains how to build the RandomWalkSequencer plugin from source for both macOS and Windows platforms.
 
-The main concept is to set all the different variables (where JUCE is, custom modules, etc) 
-in the top CMakeLists.txt, then add all your projects with very little setup time.
+## Prerequisites
 
-Another important concept is to share all 'related' projects under the same configuration,
-which I prefer, since it encourages code-sharing and build system settings sharing.
-In some of the examples I added minimal usages of juce-style modules to illustrate how that
-can be done.
+### macOS
+- Xcode (latest version recommended)
+- CMake (version 3.16 or higher)
+- JUCE framework (included via CMake)
 
-To build, all you have to do is load this project in your favorite IDE 
-(CLion/Visual Studio/VSCode/etc) 
-and click 'build' for one of the targets (templates, JUCE examples, Projucer, etc).
+### Windows
+- Visual Studio 2022 (Community Edition is sufficient)
+- CMake (version 3.16 or higher)
+- JUCE framework (included via CMake)
 
-You can also generate a project for an IDE by using (Mac):
+## Building the Plugin
+
+### Using the Automated Build Scripts
+
+#### For macOS:
+
+1. Open Terminal
+2. Navigate to the project directory
+3. Make the script executable:
+   ```bash
+   chmod +x build_release_macos.sh
+   ```
+4. Run the script:
+   ```bash
+   ./build_release_macos.sh
+   ```
+
+The script will:
+- Check if you have CMake 3.16 or higher installed
+- Remove existing plugin installations
+- Clean the build directory
+- Configure CMake in Release mode
+- Build VST3 version
+- Copy the plugin to the appropriate system directory
+
+#### For Windows:
+
+1. Open Command Prompt (or PowerShell)
+2. Navigate to the project directory
+3. Run the script:
+   ```
+   build_release_windows.bat
+   ```
+
+The script will:
+- Check if you have CMake 3.16 or higher installed
+- Remove existing plugin installations
+- Clean the build directory
+- Detect Visual Studio installation
+- Configure CMake with the Visual Studio generator
+- Build VST3 version
+- Copy the plugin to the VST3 directory
+
+### Manual Build Process
+
+If you prefer to build manually:
+
+#### macOS:
+
+```bash
+mkdir -p cmake-build-release
+cd cmake-build-release
+cmake -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --target RandomWalkSequencer_VST3 --config Release
 ```
-cmake -G Xcode -B build
+
+#### Windows:
+
 ```
-Windows:
-```
-cmake -G "Visual Studio 17 2022" -B build
+mkdir cmake-build-release
+cd cmake-build-release
+cmake -G "Visual Studio 17 2022" -A x64 -DCMAKE_BUILD_TYPE=Release ..
+cmake --build . --target RandomWalkSequencer_VST3 --config Release
 ```
 
-For package management, I'm using the amazing CPM.cmake:
-#https://github.com/TheLartians/CPM.cmake
-It automatically fetches JUCE from git, but you can also set the variable:
-CPM_JUCE_SOURCE to point it to a local folder, by using:
-``-DCPM_JUCE_SOURCE="Path_To_JUCE"``
-when invoking CMake
+## Installation Directories
 
-JUCE can be found here:
-#https://github.com/juce-framework/JUCE
+### macOS
+- VST3: `~/Library/Audio/Plug-Ins/VST3/`
 
-License:
-Anything from me in this repo is completely free to use for any purpose. 
-However, please check the licenses for CPM and JUCE as described in their repo. 
+### Windows
+- VST3: `%USERPROFILE%\Documents\VST3\`
+
+## Troubleshooting
+
+- **CMake Version**: Ensure you have CMake 3.16 or higher installed. You can check your version with `cmake --version`.
+- **Build Errors**: Make sure your development environment is properly set up with the required dependencies.
+- **Plugin Not Found by DAW**: Some DAWs require rescanning the plugin directories. Check your DAW's documentation for instructions on how to refresh the plugin list.
+- **macOS Security Warnings**: If macOS warns about unknown developer, you may need to allow the plugin in System Preferences > Security & Privacy.
