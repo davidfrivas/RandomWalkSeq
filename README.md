@@ -2,6 +2,8 @@
 
 This document explains how to build the RandomWalkSequencer plugin from source for both macOS and Windows platforms.
 
+Directory to plugin source code: [here](./Plugins/RandomWalkSequencer/).
+
 ## Prerequisites
 
 ### macOS
@@ -93,3 +95,7 @@ cmake --build . --target RandomWalkSequencer_VST3 --config Release
 - **Build Errors**: Make sure your development environment is properly set up with the required dependencies.
 - **Plugin Not Found by DAW**: Some DAWs require rescanning the plugin directories. Check your DAW's documentation for instructions on how to refresh the plugin list.
 - **macOS Security Warnings**: If macOS warns about unknown developer, you may need to allow the plugin in System Preferences > Security & Privacy.
+
+## Reference
+
+Repo template used for plugin: https://github.com/eyalamirmusic/JUCECmakeRepoPrototype/tree/master
