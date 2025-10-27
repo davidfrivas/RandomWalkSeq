@@ -6,7 +6,7 @@ evolving rhythmic and melodic MIDI patterns for use in virtual music production.
 
 ![User Interface (UI) of the RandomWalkSequencer.](https://raw.githubusercontent.com/davidfrivas/RandomWalkSeq/master/img/rws-ui.png)
 
-[![Watch the video](https://youtu.be/Bo6qagMKAhY)
+![Watch the video](https://youtu.be/Bo6qagMKAhY)
 
 ## RandomWalkSequencer Build Instructions
 
