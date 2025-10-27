@@ -1,4 +1,12 @@
-# RandomWalkSequencer Build Instructions
+# RandomWalkSequencer
+
+The **RandomWalkSequencer** is a MIDI (Musical Instrument Digital Interface) sequencer audio plugin for use in a digital 
+audio workstation (DAW) (e.g. Ableton, FL Studio, Reason). The plugin applies the random walk algorithm to generate 
+evolving rhythmic and melodic MIDI patterns for use in virtual music production.
+
+![User Interface (UI) of the RandomWalkSequencer.](https://raw.githubusercontent.com/davidfrivas/RandomWalkSeq/master/img/rws-ui.png)
+
+## RandomWalkSequencer Build Instructions
 
 This document explains how to build the RandomWalkSequencer plugin from source for both macOS and Windows platforms.
 
